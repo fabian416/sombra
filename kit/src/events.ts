@@ -294,21 +294,46 @@ export function isSelfTransfer(e: ConfidentialEvent, account: string): boolean {
 
 // ------------------------------------------------------------ field accessors
 
+/**
+ * Data fields whose name differs between confidential-token revisions.
+ *
+ * The module in `stellar-contracts` declares the recipient channel's ephemeral
+ * point as `r_e_point`; the revision the CT demo ships — and therefore the WASM
+ * this history was created against — declares it `r_e`. The value is identical,
+ * the name is not, and reading only one of them turns a perfectly good event
+ * into a decode failure. Every name a revision has used is tried, most recent
+ * first; the salt and ciphertext fields (`sigma`, `b_tilde`, `v_tilde`) have
+ * been stable across both.
+ */
+const FIELD_ALIASES: Readonly<Record<string, readonly string[]>> = {
+  r_e_point: ["r_e_point", "r_e"],
+};
+
+function dataField(e: ConfidentialEvent, field: string): { value: ScVal | undefined; what: string } {
+  const names = FIELD_ALIASES[field] ?? [field];
+  for (const name of names) {
+    const value = e.data.get(name);
+    if (value !== undefined) return { value, what: `${e.type} event ${e.id} field "${name}"` };
+  }
+  return { value: undefined, what: `${e.type} event ${e.id} field "${names.join('" / "')}"` };
+}
+
 function scalarField(e: ConfidentialEvent, field: string): bigint {
-  const bytes = scBytes(e.data.get(field), `${e.type} event ${e.id} field "${field}"`);
+  const { value, what } = dataField(e, field);
+  const bytes = scBytes(value, what);
   if (bytes.length !== 32) {
-    throw new Error(`${e.type} field "${field}" should be BytesN<32>, got ${bytes.length} bytes`);
+    throw new Error(`${what} should be BytesN<32>, got ${bytes.length} bytes`);
   }
   // The verifier panics `NonCanonicalEncoding` on any non-canonical scalar, so
   // every scalar in a successfully emitted event is the unique canonical
   // representative (SDK.md §4.2). Asserting it turns "the archive served
   // something the chain never emitted" into an error at the boundary.
-  return assertCanonicalFr(fromBytesBE(bytes), `${e.type} field "${field}"`);
+  return assertCanonicalFr(fromBytesBE(bytes), what);
 }
 
 function pointField(e: ConfidentialEvent, field: string): Point {
-  const bytes = scBytes(e.data.get(field), `${e.type} event ${e.id} field "${field}"`);
-  return assertOnCurve(pointFromBytes(bytes), `${e.type} field "${field}"`);
+  const { value, what } = dataField(e, field);
+  return assertOnCurve(pointFromBytes(scBytes(value, what)), what);
 }
 
 /** The operation salt σ, from whichever field this event type carries it in. */

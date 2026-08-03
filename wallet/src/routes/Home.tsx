@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { ScreenHeader } from "../components/Shell";
 import { ConfidentialSplitCard } from "../components/ConfidentialSplitCard";
@@ -12,13 +12,16 @@ import {
   cx,
 } from "../components/ui";
 import { useSombra } from "../state/SombraProvider";
+import { useOperationFlow } from "../lib/useOperationFlow";
+import type { TxReceipt } from "../lib/client";
 import { formatAmount, formatCount, formatLedger, splitAmount } from "../lib/format";
 
 export function Home() {
   const { balances, loadingBalances, refresh, client, hasLocalState } =
     useSombra();
-  const [merging, setMerging] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const merge_ = useOperationFlow<TxReceipt>();
+  const merging = merge_.busy;
+  const error = merge_.error;
 
   useEffect(() => {
     if (!balances.confidential) void refresh();
@@ -27,25 +30,19 @@ export function Home() {
   const { public: pub, confidential: conf, shielded } = balances;
 
   const merge = async () => {
-    setMerging(true);
-    setError(null);
-    try {
-      await client.merge();
-      await refresh();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "The merge didn't go through.",
-      );
-    } finally {
-      setMerging(false);
-    }
+    const result = await merge_.run(() => client.merge(), {
+      success: "Receiving folded into spendable",
+      failure: "Fold failed",
+      describe: (r) => `${formatAmount(r.amount)} XLM is now spendable`,
+    });
+    if (result) await refresh();
   };
 
   return (
     <>
       <ScreenHeader
         title="Balances"
-        lede="One account, three layers. What you can read here is not what an observer reads off the ledger."
+        lede="One account, three layers. What you read here is not what the ledger stores."
         action={
           <Button onClick={() => void refresh()} busy={loadingBalances}>
             Refresh

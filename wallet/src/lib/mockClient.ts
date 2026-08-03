@@ -271,7 +271,7 @@ export class MockSombraClient implements SombraClient {
   async merge(): Promise<TxReceipt> {
     const local = this.ensureLocal();
     const moved = BigInt(local.receiving);
-    if (moved === 0n) throw new Error("There is nothing in receiving to fold.");
+    if (moved === 0n) throw new Error("Your receiving balance is empty.");
     await sleep(1_400);
     const chain = this.chain();
     const nextSpendable = (BigInt(local.spendable) + moved).toString();

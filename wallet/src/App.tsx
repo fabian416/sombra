@@ -1,6 +1,7 @@
 import { HashRouter, Navigate, Route, Routes } from "react-router-dom";
 import { SombraProvider, useSombra } from "./state/SombraProvider";
 import { Atmosphere } from "./components/Atmosphere";
+import { ToastHost } from "./components/ToastHost";
 import { Shell } from "./components/Shell";
 import { Connect } from "./routes/Connect";
 import { Home } from "./routes/Home";
@@ -36,6 +37,7 @@ export function App() {
       <SombraProvider>
         <Atmosphere />
         <Router />
+        <ToastHost />
       </SombraProvider>
     </HashRouter>
   );

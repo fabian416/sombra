@@ -12,6 +12,8 @@ import {
   cx,
 } from "../components/ui";
 import { useSombra } from "../state/SombraProvider";
+import { useOperationFlow } from "../lib/useOperationFlow";
+import { CipherSweep } from "../components/CipherSweep";
 import type { ReceiveInfo, TxReceipt } from "../lib/client";
 import {
   formatAmount,
@@ -75,19 +77,25 @@ function SendForm() {
   const { client, balances, refresh, hasLocalState } = useSombra();
   const [to, setTo] = useState("");
   const [amount, setAmount] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [sending, setSending] = useState(false);
+  const [invalid, setInvalid] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<TxReceipt | null>(null);
+  const flow = useOperationFlow<TxReceipt>();
 
   const spendable = balances.confidential?.spendable ?? 0n;
+  const sending = flow.busy;
+  // Validation errors are the form's; failures belong to the flow.
+  const error = invalid ?? flow.error;
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError(null);
+    setInvalid(null);
     setReceipt(null);
+    flow.reset();
 
     if (!isStellarAddress(to)) {
-      setError("That isn't a Stellar public key. It starts with G and is 56 characters.");
+      setInvalid(
+        "That isn't a Stellar public key. It starts with G and is 56 characters.",
+      );
       return;
     }
 
@@ -95,24 +103,25 @@ function SendForm() {
     try {
       parsed = parseAmount(amount);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Check the amount.");
+      setInvalid(err instanceof Error ? err.message : "Check the amount.");
       return;
     }
     if (parsed === 0n) {
-      setError("Enter an amount above zero.");
+      setInvalid("Enter an amount above zero.");
       return;
     }
 
-    setSending(true);
-    try {
-      const result = await client.privateSend(to.trim(), parsed);
+    const result = await flow.run(() => client.privateSend(to.trim(), parsed), {
+      success: "Transfer sent",
+      failure: "Transfer failed",
+      describe: (r) =>
+        `${formatAmount(r.amount)} XLM · ledger ${formatLedger(r.ledger)}`,
+    });
+
+    if (result) {
       setReceipt(result);
       setAmount("");
       await refresh();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "The transfer didn't go through.");
-    } finally {
-      setSending(false);
     }
   };
 
@@ -120,6 +129,7 @@ function SendForm() {
     <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
       <Panel>
         <PanelHeader title="Private transfer" layer="CT" />
+        <CipherSweep active={sending} label="Encrypting">
         <form onSubmit={submit} className="space-y-5 px-5 py-5">
           <Field
             label="Recipient"
@@ -149,7 +159,7 @@ function SendForm() {
               busy={sending}
               disabled={!hasLocalState}
             >
-              {sending ? "Proving and submitting" : "Send privately"}
+              Send privately
             </Button>
             {amount && !error && (
               <button
@@ -180,6 +190,7 @@ function SendForm() {
             </Notice>
           )}
         </form>
+        </CipherSweep>
       </Panel>
 
       <Panel className="h-fit">

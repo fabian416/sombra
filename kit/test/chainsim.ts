@@ -27,6 +27,7 @@ import { addressToField, encodeStrkey } from "../src/crypto/address.js";
 import { fqAdd, toBytes32BE } from "../src/crypto/field.js";
 import {
   H,
+  type EcdhRule,
   type Point,
   commit,
   ecdh,
@@ -98,21 +99,50 @@ function i128Val(v: bigint): xdr.ScVal {
   );
 }
 
+/**
+ * Which contract revision the simulator plays.
+ *
+ * `oz` is `stellar-contracts`'s confidential module: `Poseidon2(δ_ecdh, S.x,
+ * S.y)` and a `r_e_point` event field. `ctd-demo` is the revision the CT demo
+ * ships and deploys — x-only ECDH, and the same field named `r_e`. Both exist
+ * on testnet today, so both are simulated: a recovery engine that only handles
+ * one of them handles no real deployment reliably.
+ */
+export type SimRevision = "oz" | "ctd-demo";
+
+export interface SimOptions {
+  contractId?: string;
+  startLedger?: number;
+  revision?: SimRevision;
+}
+
 export class ChainSim {
   readonly contractId: string;
   readonly addrF: bigint;
   readonly accounts = new Map<string, SimAccount>();
   readonly events: RawEvent[] = [];
+  readonly revision: SimRevision;
 
   private ledger: number;
   private txOrder = 0;
   /** Salts are per-attempt in the protocol; a counter keeps tests reproducible. */
   private saltCounter = 1n;
 
-  constructor(contractId = testContract(), startLedger = 1000) {
-    this.contractId = contractId;
-    this.addrF = addressToField(contractId);
-    this.ledger = startLedger;
+  constructor(options: SimOptions = {}) {
+    this.contractId = options.contractId ?? testContract();
+    this.addrF = addressToField(this.contractId);
+    this.ledger = options.startLedger ?? 1000;
+    this.revision = options.revision ?? "oz";
+  }
+
+  /** The ECDH rule this revision's contract implements. */
+  get ecdhRule(): EcdhRule {
+    return this.revision === "ctd-demo" ? "x-only" : "poseidon2";
+  }
+
+  /** What this revision calls the recipient channel's ephemeral point. */
+  private get rEPointField(): string {
+    return this.revision === "ctd-demo" ? "r_e" : "r_e_point";
   }
 
   /** Advance to a new ledger. Events since the last call shared the previous one. */
@@ -237,7 +267,7 @@ export class ChainSim {
 
     const rE = deriveEphemeralScalar(sender.vk, sigma);
     const rEPoint = scalarMul(rE, H);
-    const s = ecdh(rE, recipient.PVK);
+    const s = ecdh(rE, recipient.PVK, this.ecdhRule);
     const rTransfer = deriveTransferBlinding(s, sigma);
     const vTilde = encryptAmount(amount, s, sigma);
 
@@ -266,7 +296,7 @@ export class ChainSim {
         // Deliberately not alphabetical: nothing may decode positionally.
         ["v_tilde", scalarVal(vTilde)],
         ["b_tilde", scalarVal(bTilde)],
-        ["r_e_point", pointVal(rEPoint)],
+        [this.rEPointField, pointVal(rEPoint)],
         ["sigma", scalarVal(sigma)],
         ["v_tilde_aud_r", scalarVal(0n)],
         ["r_tilde_aud_r", scalarVal(0n)],
@@ -294,7 +324,7 @@ export class ChainSim {
         ["amount", i128Val(amount)],
         ["b_tilde", scalarVal(encryptBalance(vNew, sender.vk, sigma))],
         ["sigma", scalarVal(sigma)],
-        ["r_e_point", pointVal(scalarMul(deriveEphemeralScalar(sender.vk, sigma), H))],
+        [this.rEPointField, pointVal(scalarMul(deriveEphemeralScalar(sender.vk, sigma), H))],
         ["b_tilde_aud_s", scalarVal(0n)],
       ],
     );

@@ -32,6 +32,8 @@ export interface FakeOptions {
   archiveFailsWith?: number;
   /** Page size the archive serves, to exercise cursor draining. */
   pageSize?: number;
+  /** How the account entry names its fields. Defaults to the deployed naming. */
+  accountFieldNaming?: AccountFieldNaming;
 }
 
 export const RPC_URL = "https://rpc.test/soroban";
@@ -53,38 +55,64 @@ function serializeEvent(e: RawEvent): Record<string, unknown> {
   };
 }
 
+/**
+ * How a `ConfidentialAccount` entry names its fields on the wire.
+ *
+ * `deployed` is what the contract at `CC2Z…4ZAC` really stores — a struct is an
+ * `ScMap` keyed by Rust field names, so the wire form follows the source.
+ * `spec` is DESIGN.md's prose naming, which three of the four points do not use.
+ * Both are encoded here because `chain.ts` accepts both and the difference is a
+ * decode failure, not a wrong number: worth pinning in a test rather than
+ * discovering against a live RPC.
+ */
+export type AccountFieldNaming = "deployed" | "spec";
+
+const ACCOUNT_FIELD_NAMES: Record<AccountFieldNaming, Record<keyof OnChainAccount, string>> = {
+  deployed: {
+    spendingPublicKey: "spending_key",
+    viewingPublicKey: "viewing_public_key",
+    spendableCommitment: "spendable_balance",
+    receivingCommitment: "receiving_balance",
+    auditorId: "auditor_id",
+  },
+  spec: {
+    spendingPublicKey: "spending_public_key",
+    viewingPublicKey: "viewing_public_key",
+    spendableCommitment: "spendable_commitment",
+    receivingCommitment: "receiving_commitment",
+    auditorId: "auditor_id",
+  },
+};
+
 /** Encode chain state the way `getLedgerEntries` serves it. */
 export function encodeAccountEntry(
   contractId: string,
   account: string,
   a: OnChainAccount,
+  naming: AccountFieldNaming = "deployed",
 ): string {
+  const names = ACCOUNT_FIELD_NAMES[naming];
   const bytes = (b: Uint8Array): xdr.ScVal => xdr.ScVal.scvBytes(Buffer.from(b));
+  const entry = (key: string, val: xdr.ScVal): xdr.ScMapEntry =>
+    new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol(key), val });
+
+  // Canonical XDR sorts map keys, and the two namings sort differently — so the
+  // entries are sorted here rather than written in a fixed order.
+  const fields = [
+    entry(names.auditorId, xdr.ScVal.scvU32(a.auditorId)),
+    entry(names.receivingCommitment, bytes(pointToBytes(a.receivingCommitment))),
+    entry(names.spendableCommitment, bytes(pointToBytes(a.spendableCommitment))),
+    entry(names.spendingPublicKey, bytes(pointToBytes(a.spendingPublicKey))),
+    entry(names.viewingPublicKey, bytes(pointToBytes(a.viewingPublicKey))),
+  ].sort((x, y) => (x.key().sym().toString() < y.key().sym().toString() ? -1 : 1));
+
   return xdr.LedgerEntryData.contractData(
     new xdr.ContractDataEntry({
       ext: xdr.ExtensionPoint.fromXDR(Buffer.from([0, 0, 0, 0])),
       contract: new Address(contractId).toScAddress(),
       key: xdr.ScVal.scvVec([xdr.ScVal.scvSymbol("Account"), new Address(account).toScVal()]),
       durability: xdr.ContractDataDurability.persistent(),
-      val: xdr.ScVal.scvMap([
-        new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol("auditor_id"), val: xdr.ScVal.scvU32(a.auditorId) }),
-        new xdr.ScMapEntry({
-          key: xdr.ScVal.scvSymbol("receiving_commitment"),
-          val: bytes(pointToBytes(a.receivingCommitment)),
-        }),
-        new xdr.ScMapEntry({
-          key: xdr.ScVal.scvSymbol("spendable_commitment"),
-          val: bytes(pointToBytes(a.spendableCommitment)),
-        }),
-        new xdr.ScMapEntry({
-          key: xdr.ScVal.scvSymbol("spending_public_key"),
-          val: bytes(pointToBytes(a.spendingPublicKey)),
-        }),
-        new xdr.ScMapEntry({
-          key: xdr.ScVal.scvSymbol("viewing_public_key"),
-          val: bytes(pointToBytes(a.viewingPublicKey)),
-        }),
-      ]),
+      val: xdr.ScVal.scvMap(fields),
     }),
   ).toXDR("base64");
 }
@@ -188,7 +216,12 @@ export function makeBackends(options: FakeOptions): FakeBackends {
             if (keys.includes(expected)) {
               entries.push({
                 key: expected,
-                xdr: encodeAccountEntry(sim.contractId, a, sim.onChain(a)),
+                xdr: encodeAccountEntry(
+                  sim.contractId,
+                  a,
+                  sim.onChain(a),
+                  options.accountFieldNaming,
+                ),
                 lastModifiedLedgerSeq: head,
               });
             }

@@ -47,6 +47,7 @@ export {
   G,
   H,
   IDENTITY,
+  type EcdhRule,
   type Point,
   assertOnCurve,
   commit,

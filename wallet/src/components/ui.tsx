@@ -93,11 +93,13 @@ export function Button({
   disabled,
   ...rest
 }: ButtonProps) {
+  // Every primary action in the wallet is this exact control: cyan gradient,
+  // black text, and a glow that escalates on hover. Consistency is the point.
   const base =
-    "relative inline-flex items-center justify-center gap-2 rounded-full border px-5 py-2.5 text-[13px] font-medium tracking-[0.01em] transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0";
+    "relative inline-flex items-center justify-center gap-2 rounded-full border px-5 py-2.5 text-[13px] font-medium tracking-[0.01em] transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-[0_0_40px_rgba(56,226,255,0.45)]";
   const tone =
     variant === "primary"
-      ? "border-transparent bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 font-semibold text-black glow-cta hover:-translate-y-0.5"
+      ? "border-transparent bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 font-semibold text-black shadow-[0_0_40px_rgba(56,226,255,0.45)] hover:-translate-y-0.5 hover:shadow-[0_0_60px_rgba(56,226,255,0.6)]"
       : variant === "danger"
         ? "border-chroma/45 bg-chroma/5 text-chroma hover:border-chroma hover:bg-chroma/15"
         : "border-white/20 bg-white/5 text-corona-dim backdrop-blur hover:-translate-y-0.5 hover:border-white/40 hover:bg-white/10 hover:text-corona";

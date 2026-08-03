@@ -95,7 +95,7 @@ case and gets a different error type, carrying the coverage so a UI can say
 ## Tests
 
 ```
-npm test          # 102 tests
+npm test          # 106 tests
 npm run build     # tsup → dist/, ESM, platform-neutral
 npm run typecheck
 ```
@@ -106,7 +106,7 @@ npm run typecheck
 | `xdr.test.ts` | 22 | The hand-rolled XDR grammar against `@stellar/stellar-base` |
 | `keys.test.ts` | 23 | `SDK.md` §5, and byte-parity with `scripts/derive.ts` |
 | `replay.test.ts` | 22 | `DESIGN.md` §5.2 steps 1–7, `INDEXER.md` §2 and §3.4 |
-| `seam.test.ts` | 14 | `SDK.md` §12.3 / §12.4, and end-to-end recovery |
+| `seam.test.ts` | 18 | `SDK.md` §12.3 / §12.4, both contract revisions, end-to-end recovery |
 
 Two properties make these worth more than their count.
 
@@ -122,6 +122,28 @@ commitments exactly as `storage.rs` does. So a passing test means the replayed
 opening re-commits to a point derived independently of the replay — which is
 what step 7 checks against a real chain. ECDH commutativity has to actually
 hold for the suite to be green.
+
+**Two contract revisions are live, and they differ where recovery reads.**
+Running this package against the real testnet deployment surfaced three
+divergences between `stellar-contracts`'s confidential module and the revision
+the CT demo ships and deploys, all of them in exactly the bytes recovery
+touches:
+
+| | `stellar-contracts` | CT demo's deployed WASM |
+|:--|:--|:--|
+| Account entry | `spending_public_key`, `spendable_commitment`, `receiving_commitment` | `spending_key`, `spendable_balance`, `receiving_balance` |
+| Transfer field | `r_e_point` | `r_e` |
+| ECDH secret | `Poseidon2(δ_ecdh, S.x, S.y)` | `S.x` |
+
+The first two are names and are read by alias (`chain.ts`, `events.ts`); get
+them wrong and nothing decodes at all, which is a loud failure. The third is
+not a name — under the wrong rule every incoming transfer decrypts to a
+different amount *and* a different blinding, so `recoverFromSigner` resolves it
+by replaying under each and keeping whichever re-commits to the on-chain points.
+That is safe for the same reason the archive can be untrusted: step 7 is the
+arbiter, and no wrong rule opens the chain's commitment. Pin it with
+`ecdhRule` when the deployment is known. `poseidon2` remains the default and is
+what the fixtures pin; `seam.test.ts` recovers a history emitted under each.
 
 **Key derivation is `SDK.md` §5 and nothing else.** There is no fallback path
 and no second scheme — the CT demo app's `sk = SHA-512(signature) mod r` is not

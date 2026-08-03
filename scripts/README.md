@@ -1,10 +1,12 @@
 # Sombra scripts — the demo's on-chain substrate
 
-Three Node scripts. `deploy.ts` puts a fresh Confidential Token on Stellar
+Four Node scripts. `deploy.ts` puts a fresh Confidential Token on Stellar
 testnet; `derive.ts` implements the normative key derivation both this side and
 the browser depend on; `history.ts` gives one account a real confidential
-history on it. Everything the browser wallet and the Archive demonstrate is read
-back from what these produce — the wallet never proves anything itself.
+history on it; `e2e-recover.ts` recovers that account from its signer alone,
+through the same `sombra-kit` code path the browser runs. Everything the browser
+wallet and the Archive demonstrate is read back from what these produce — the
+wallet never proves anything itself.
 
 Splitting the work this way is deliberate. Reconstructing a balance needs no
 zero-knowledge proof at all (`DESIGN.md` §5.2 is two Poseidon2 hashes, an ECDH
@@ -39,6 +41,35 @@ npm install
 npm run deploy            # ~1 min
 npm run derive -- --parity  # seconds — key derivation vs. the browser kit
 npm run history           # several minutes — real UltraHonk proofs
+npm run e2e               # seconds — recover the primary account for real
+```
+
+## `e2e-recover.ts` — the proof, outside the browser
+
+Takes the primary account's Stellar secret, derives its confidential keys
+through `SDK.md` §5, fetches its history from the running Sombra Archive across
+the seam, replays `DESIGN.md` §5.2 steps 1–6, and re-commits both openings
+against the Pedersen points the contract holds. It prints the checkpoint it
+found, the two legs of the sync, the reconstructed openings, and `VERIFIED=`,
+exiting non-zero when that is false.
+
+It authors nothing: every event replayed was written by `history.ts` in real
+ledgers under real proofs. And it runs the same `recoverFromSigner` the wallet
+calls, with a local ed25519 signer standing in for the Freighter prompt — so a
+green run here and a failure in the browser localises the difference to the
+signer rather than to the recovery.
+
+The Archive must be running (`SOMBRA_ARCHIVE_URL`, default
+`http://localhost:8787`). The seam is compressed by default to just above the
+scripted history, because the natural seam sits ~120,960 ledgers back and would
+leave the RPC serving everything; `--natural` uses the live floor instead, and
+both numbers are printed either way.
+
+```sh
+npm run e2e                      # compressed seam, primary account
+npm run e2e -- --natural         # seam from the live RPC retention floor
+npm run e2e -- --account secondary
+SOMBRA_SEAM_LEDGER=3954009 npm run e2e
 ```
 
 ## How the CT SDK is consumed

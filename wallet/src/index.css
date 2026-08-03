@@ -176,13 +176,13 @@
   );
 }
 
-/* Blurred colour fields, partly off-canvas. Atmosphere only — never a control. */
+/* Soft colour fields, partly off-canvas. Atmosphere only — never a control.
+   The softness comes from the gradient itself, not a blur filter. */
 .orb {
   position: fixed;
   border-radius: 9999px;
   pointer-events: none;
   z-index: 0;
-  filter: blur(150px);
 }
 
 @keyframes corona-drift {
@@ -271,5 +271,17 @@
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.001ms !important;
+  }
+}
+
+/* Starfield twinkle. Opacity only, so it runs on the compositor and the main
+   thread stays free — the field itself is painted once. */
+@keyframes star-twinkle {
+  0%,
+  100% {
+    opacity: 0.45;
+  }
+  50% {
+    opacity: 1;
   }
 }

@@ -5,11 +5,31 @@ import { Button, Eyebrow } from "../components/ui";
 import { useSombra } from "../state/SombraProvider";
 import { detectFreighter } from "../lib/freighter";
 
+/**
+ * Copy deck — the landing strings, in the order they are read. Kept here so the
+ * demo script and the screen never drift apart.
+ *
+ *   Eyebrow    Confidential Token · Private payment pools
+ *   Headline   Hidden on chain. / Never lost.
+ *   Body       A confidential balance is a commitment, not a number. Spending
+ *              one means replaying the account's full event history, and
+ *              Stellar RPC retains seven days of it.
+ *   Turn       Past that window a balance stays visibly yours and stops being
+ *              spendable. Sombra keeps the history that makes it spendable.
+ *   Actions    Connect Freighter · Explore with demo data
+ *   Facts      7 days / Indefinite / Zero trust
+ *   Plate      The chain stores → a Pedersen commitment
+ *              You read → 840.2500000 XLM, spendable
+ *
+ * Register: state the mechanism, then its consequence. No superlatives, no
+ * filler, no exclamation marks. The numbers carry the drama on their own.
+ */
+
 /** Facts, not features. Each one is checkable. */
 const LEDGER = [
-  { figure: "7 days", note: "Soroban RPC keeps events this long" },
-  { figure: "Indefinite", note: "Sombra Archive keeps them this long" },
-  { figure: "Zero trust", note: "every replay is checked against the chain" },
+  { figure: "7 days", note: "Soroban RPC event retention" },
+  { figure: "Indefinite", note: "Sombra Archive retention" },
+  { figure: "Zero trust", note: "Every replay verified against chain" },
 ];
 
 export function Connect() {
@@ -59,14 +79,13 @@ export function Connect() {
           </h1>
 
           <p className="mt-6 max-w-[33rem] text-[15.5px] leading-[1.7] text-corona-dim">
-            A confidential balance on Stellar is a commitment, not a number. To
-            spend it your wallet has to replay your account's whole event
-            history — and Stellar RPC only keeps seven days of that history.
+            A confidential balance is a commitment, not a number. Spending one
+            means replaying the account's full event history, and Stellar RPC
+            retains seven days of it.
           </p>
           <p className="mt-3.5 max-w-[33rem] text-[15.5px] leading-[1.7] text-ash">
-            Lose your device after day eight and the funds are still yours on
-            paper, still visible on chain, and permanently unspendable. Sombra
-            keeps the history that makes them spendable.
+            Past that window a balance stays visibly yours and stops being
+            spendable. Sombra keeps the history that makes it spendable.
           </p>
 
           <div className="mt-9 flex flex-wrap items-center gap-3">
@@ -197,13 +216,11 @@ function EclipsePlate() {
         </div>
 
         <div className="absolute bottom-0 left-0 w-[10.5rem]">
-          <Eyebrow className="text-corona-dim">You see</Eyebrow>
+          <Eyebrow className="text-corona-dim">You read</Eyebrow>
           <p className="numeral mt-1 text-[13.5px] leading-snug text-corona">
             840.2500000 XLM
           </p>
-          <p className="mt-0.5 text-[12px] leading-snug text-ash">
-            spendable, right now
-          </p>
+          <p className="mt-0.5 text-[12px] leading-snug text-ash">spendable</p>
         </div>
       </div>
     </div>

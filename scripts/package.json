@@ -8,6 +8,7 @@
     "deploy": "tsx deploy.ts",
     "derive": "tsx derive.ts",
     "history": "tsx history.ts",
+    "e2e": "tsx e2e-recover.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

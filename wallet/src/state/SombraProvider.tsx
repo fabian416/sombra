@@ -16,6 +16,7 @@ import type {
   WalletIdentity,
 } from "../lib/client";
 import { DEMO_ADDRESS, MockSombraClient } from "../lib/mockClient";
+import { LiveSombraClient } from "../lib/liveClient";
 import { restoreSession } from "../lib/freighter";
 
 export const ARCHIVE_URL: string =
@@ -23,23 +24,24 @@ export const ARCHIVE_URL: string =
 
 export type ClientMode = "mock" | "live";
 
-/** Only "mock" ships today; "live" lands when sombra-kit is wired. */
-export const CLIENT_MODE: ClientMode =
-  import.meta.env.VITE_SOMBRA_CLIENT === "live" ? "live" : "mock";
-
 /**
- * The one place an implementation is chosen. Selecting "live" before sombra-kit
- * exists fails loudly here rather than silently serving mock numbers that look
- * like chain data — the failure mode that matters for a wallet.
+ * `live` runs sombra-kit against the real Archive, the real RPC and the real
+ * contract; `mock` is the scripted stand-in. Both env names are accepted
+ * because `.env.example` shipped one and the build scripts use the other, and a
+ * flag that silently ignores the spelling you used is worse than either.
+ *
+ * The default stays `mock`: live mode needs a registered account on
+ * `VITE_CT_CONTRACT_ID` and a reachable Archive, and a visitor who has neither
+ * should get the demo rather than an error page.
  */
+const REQUESTED_MODE =
+  import.meta.env.VITE_CLIENT_MODE ?? import.meta.env.VITE_SOMBRA_CLIENT;
+
+export const CLIENT_MODE: ClientMode = REQUESTED_MODE === "live" ? "live" : "mock";
+
+/** The one place an implementation is chosen. */
 function createClient(mode: ClientMode): SombraClient {
-  if (mode === "live") {
-    throw new Error(
-      "VITE_SOMBRA_CLIENT=live, but the live client is not wired yet. " +
-        "Set VITE_SOMBRA_CLIENT=mock (or unset it) to run the demo.",
-    );
-  }
-  return new MockSombraClient();
+  return mode === "live" ? new LiveSombraClient(ARCHIVE_URL) : new MockSombraClient();
 }
 
 interface Balances {
@@ -116,13 +118,17 @@ export function SombraProvider({ children }: { children: ReactNode }) {
   const enterPreview = useCallback(() => {
     setPreview(true);
     setConnectError(null);
-    setIdentity({
+    const previewIdentity: WalletIdentity = {
       address: DEMO_ADDRESS,
       network: "TESTNET",
       networkPassphrase: "Test SDF Network ; September 2015",
+    };
+    setIdentity(previewIdentity);
+    client.adoptIdentity?.(previewIdentity);
+    refresh().catch((err: unknown) => {
+      setConnectError(err instanceof Error ? err.message : "Could not read balances.");
     });
-    void refresh();
-  }, [refresh]);
+  }, [client, refresh]);
 
   const disconnect = useCallback(() => {
     setIdentity(null);
@@ -147,12 +153,15 @@ export function SombraProvider({ children }: { children: ReactNode }) {
     void restoreSession().then((session) => {
       if (cancelled || !session) return;
       setIdentity((current) => (current ? current : session));
-      void refresh();
+      client.adoptIdentity?.(session);
+      refresh().catch((err: unknown) => {
+        setConnectError(err instanceof Error ? err.message : "Could not read balances.");
+      });
     });
     return () => {
       cancelled = true;
     };
-  }, [refresh]);
+  }, [client, refresh]);
 
   const value = useMemo<SombraContextValue>(
     () => ({

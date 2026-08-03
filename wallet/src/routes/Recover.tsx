@@ -12,6 +12,7 @@ import type {
   RecoveryResult,
 } from "../lib/client";
 import { formatAmount, formatCount, formatLedger } from "../lib/format";
+import { toast } from "../lib/toast";
 
 /** A real sequence, so it is numbered. Order is the information. */
 const STEPS: Array<{ phase: RecoveryPhase; title: string; note: string }> = [
@@ -98,9 +99,10 @@ export function Recover() {
       setResult(outcome);
       await refresh();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Recovery stopped before finishing.",
-      );
+      const detail =
+        err instanceof Error ? err.message : "Recovery stopped before finishing.";
+      setError(detail);
+      toast.error("Recovery failed", detail);
       setProgress(null);
     } finally {
       setRunning(false);
@@ -129,7 +131,7 @@ export function Recover() {
 
       <ScreenHeader
         title="Recover"
-        lede="Stellar RPC forgets your history after seven days. The Sombra Archive doesn't, so your wallet signature is enough to make a confidential balance spendable again — on any device, at any age."
+        lede="Stellar RPC retains seven days of history. The Sombra Archive retains all of it, so a wallet signature is enough to make a confidential balance spendable again on any device."
       />
 
       {!hasLocalState && !showStage && (
@@ -158,8 +160,7 @@ export function Recover() {
               <p className="text-[13.5px] leading-relaxed text-ash">
                 Sombra asks your wallet to sign one fixed message naming this
                 token contract and your account. That signature derives the same
-                keys on any device, which is what makes recovery possible without
-                storing anything.
+                keys on any device, so nothing has to be stored.
               </p>
 
               <Button variant="primary" onClick={() => void start()}>

@@ -140,25 +140,37 @@ export function commit(v: bigint, r: bigint): Point {
 }
 
 /**
+ * How the shared point is reduced to a shared scalar.
+ *
+ * `poseidon2` is DESIGN.md §2.4 / SDK.md §4.5 as they stand, and it is what
+ * `circuits/lib/testdata/` pins. `x-only` is the rule the earlier revision
+ * specified and the one the CT demo's deployed contract still implements —
+ * including the token this project recovers against, so it is not a legacy
+ * curiosity but a live deployment's behaviour.
+ *
+ * The difference is a real security property, not a formatting choice: `P` and
+ * `−P` share an x-coordinate and `−PVK` is itself a valid canonical
+ * registration, so `x-only` collapses each `(vk, −vk)` pair onto one shared
+ * secret. Which is why the two are named rather than silently unified, and why
+ * `poseidon2` is the default everywhere.
+ */
+export type EcdhRule = "poseidon2" | "x-only";
+
+/**
  * ECDH shared-secret scalar — DESIGN.md §2.4, SDK.md §4.5.
  *
- * `S = a·B`, then `s = Poseidon2(δ_ecdh, S.x, S.y)`.
- *
- * **Both coordinates are absorbed**, and that is a security property rather
- * than a formatting choice: `P` and `−P` share an x-coordinate, and `−PVK` is
- * itself a valid canonical registration, so an x-only extraction would
- * collapse each `(vk, −vk)` pair onto one shared secret.
+ * `S = a·B`, then `s = Poseidon2(δ_ecdh, S.x, S.y)` under the default rule.
  *
  * The derivation **fails** on an identity `S` (SDK.md §4.5): σ is public, so
  * an identity shared secret makes every derived ciphertext trivially
- * decryptable.
+ * decryptable. That holds under either rule.
  */
-export function ecdh(scalar: bigint, point: Point): bigint {
+export function ecdh(scalar: bigint, point: Point, rule: EcdhRule = "poseidon2"): bigint {
   const s = scalarMul(scalar, point);
   if (isIdentity(s)) {
     throw new Error("ECDH shared secret is the identity — refusing to derive (SDK.md §4.5)");
   }
-  return poseidonWithDomain(DOMAIN.ECDH, [s.x, s.y]);
+  return rule === "x-only" ? s.x : poseidonWithDomain(DOMAIN.ECDH, [s.x, s.y]);
 }
 
 // ------------------------------------------------------------------ encoding

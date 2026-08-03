@@ -6,10 +6,12 @@
  * that behave like the real services — the RPC really refuses ranges below its
  * floor with `-32600`, and the archive really stamps `complete` on every page.
  */
+import { xdr } from "@stellar/stellar-base";
 import { describe, expect, it } from "vitest";
 
 import { ArchiveClient, ArchiveError } from "../src/archive.js";
 import { RpcClient, RpcError } from "../src/chain.js";
+import { pointsEqual } from "../src/crypto/grumpkin.js";
 import { decodeEvents } from "../src/events.js";
 import { deriveKeysFromEd25519Secret, ed25519Signer } from "../src/keys.js";
 import { replay, verifyAgainstChain } from "../src/replay.js";
@@ -66,8 +68,10 @@ function midLedger(sim: ChainSim, account: string): number {
 
 function clients(opts: Partial<FakeOptions> & { sim: ChainSim }) {
   const backends = makeBackends({
-    rpcOldestLedger: midLedger(opts.sim, ALICE) - MARGIN,
     ...opts,
+    // Computed only when the caller did not pin it — a sim without ALICE in it
+    // has no mid-ledger for her.
+    rpcOldestLedger: opts.rpcOldestLedger ?? midLedger(opts.sim, ALICE) - MARGIN,
   } as FakeOptions);
   return {
     backends,
@@ -264,6 +268,56 @@ describe("pagination", () => {
   });
 });
 
+describe("the ConfidentialAccount entry, as deployments really name its fields", () => {
+  // The deployed contract stores a struct as an ScMap keyed by its **Rust
+  // field names** — `spending_key`, `spendable_balance`, `receiving_balance` —
+  // where DESIGN.md's prose says `spending_public_key`, `spendable_commitment`
+  // and `receiving_commitment`. Reading only the prose names decodes nothing
+  // against the real testnet deployment, which is a hard failure at step 7's
+  // doorstep rather than a wrong balance. Both namings are pinned here.
+  for (const naming of ["deployed", "spec"] as const) {
+    it(`decodes the ${naming} field naming into the same OnChainAccount`, async () => {
+      const sim = history();
+      const { rpc } = clients({ sim, accountFieldNaming: naming });
+
+      const chain = await rpc.confidentialAccount(sim.contractId, ALICE);
+      const expected = sim.onChain(ALICE);
+
+      expect(chain).not.toBeNull();
+      expect(pointsEqual(chain!.spendingPublicKey, expected.spendingPublicKey)).toBe(true);
+      expect(pointsEqual(chain!.spendableCommitment, expected.spendableCommitment)).toBe(true);
+      expect(pointsEqual(chain!.receivingCommitment, expected.receivingCommitment)).toBe(true);
+      expect(chain!.auditorId).toBe(expected.auditorId);
+    });
+  }
+
+  it("names every field it tried when the entry carries none of them", async () => {
+    const sim = history();
+    const { backends } = clients({ sim });
+    const stripped: typeof backends.fetch = async (input, init) => {
+      const res = await backends.fetch(input, init);
+      const url = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
+      const method = JSON.parse(String(init?.body ?? "{}")) as { method?: string };
+      if (!url.startsWith(RPC_URL) || method.method !== "getLedgerEntries") return res;
+      const body = (await res.json()) as { result: { entries: { key: string; xdr: string }[] } };
+      // An entry whose map holds only `auditor_id`: well-formed XDR, no points.
+      const entry = body.result.entries[0]!;
+      const decoded = xdr.LedgerEntryData.fromXDR(entry.xdr, "base64");
+      const data = decoded.contractData();
+      data.val(xdr.ScVal.scvMap([
+        new xdr.ScMapEntry({ key: xdr.ScVal.scvSymbol("auditor_id"), val: xdr.ScVal.scvU32(0) }),
+      ]));
+      entry.xdr = xdr.LedgerEntryData.contractData(data).toXDR("base64");
+      return new Response(JSON.stringify(body), { headers: { "content-type": "application/json" } });
+    };
+
+    const rpc = new RpcClient(RPC_URL, { fetch: stripped });
+    await expect(rpc.confidentialAccount(sim.contractId, ALICE)).rejects.toThrow(
+      /spending_public_key \/ spending_key/,
+    );
+  });
+});
+
 describe("end-to-end — recoverFromSigner against the fakes", () => {
   it("derives, syncs across the seam, replays and verifies", async () => {
     const { recoverFromSigner } = await import("../src/recover.js");
@@ -316,6 +370,69 @@ describe("end-to-end — recoverFromSigner against the fakes", () => {
     // Both legs were used and the split is reported honestly.
     expect(result.archiveOnly).toBeGreaterThan(0);
     expect(result.sync.rpcLeg.events).toBeGreaterThan(0);
+  });
+
+  it("recovers a history emitted by the demo's contract revision (x-only ECDH, r_e)", async () => {
+    // The revision deployed for this project's demo differs from
+    // `stellar-contracts` in two ways that both land in the recipient channel:
+    // the ECDH secret is `S.x` rather than `Poseidon2(δ_ecdh, S.x, S.y)`, and
+    // the ephemeral point is `r_e` rather than `r_e_point`. Under the spec rule
+    // every incoming transfer decrypts to a different amount *and* a different
+    // blinding, so step 7 refuses — which is what makes resolving the rule
+    // against chain state safe, and what this case pins.
+    const { recoverFromSigner } = await import("../src/recover.js");
+    const sim = new ChainSim({ revision: "ctd-demo" });
+
+    const secret = new Uint8Array(32).fill(11);
+    const { ed25519 } = await import("@noble/curves/ed25519.js");
+    const { encodeStrkey } = await import("../src/crypto/address.js");
+    const signerAddress = encodeStrkey("account", ed25519.getPublicKey(secret));
+    const keys = await deriveKeysFromEd25519Secret(secret, {
+      contractId: sim.contractId,
+      account: signerAddress,
+    });
+
+    sim.register(signerAddress, keys.sk);
+    sim.register(BOB, BOB_SK);
+    sim.deposit(SINK, BOB, 100_000n);
+    sim.merge(BOB);
+    sim.deposit(SINK, signerAddress, 1_000n);
+    sim.merge(signerAddress);
+    sim.transfer(BOB, signerAddress, 700n);
+    sim.merge(signerAddress);
+    sim.withdraw(signerAddress, SINK, 400n);
+    sim.transfer(BOB, signerAddress, 600n);
+    sim.merge(signerAddress);
+
+    const { rpc, archive } = clients({ sim, rpcOldestLedger: midLedger(sim, signerAddress) - MARGIN });
+    const recover = () =>
+      recoverFromSigner({
+        signer: ed25519Signer(secret, signerAddress),
+        contractId: sim.contractId,
+        account: signerAddress,
+        rpc,
+        archive,
+        marginLedgers: MARGIN,
+      });
+
+    const auto = await recover();
+    expect(auto.verifiedAgainstChain).toBe(true);
+    expect(auto.replay.ecdhRule).toBe("x-only");
+    expect(auto.restored.spendable.v).toBe(1_900n);
+
+    // Pinned to the spec rule, the same history refuses rather than reporting a
+    // plausible wrong balance.
+    const pinned = await recoverFromSigner({
+      signer: ed25519Signer(secret, signerAddress),
+      contractId: sim.contractId,
+      account: signerAddress,
+      rpc,
+      archive,
+      marginLedgers: MARGIN,
+      ecdhRule: "poseidon2",
+    });
+    expect(pinned.verifiedAgainstChain).toBe(false);
+    expect(pinned.restored.spendable.v).not.toBe(1_900n);
   });
 
   it("refuses immediately when the derived Y is not the registered spending key", async () => {

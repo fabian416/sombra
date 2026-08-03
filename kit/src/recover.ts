@@ -25,7 +25,7 @@
  */
 import { ArchiveClient, type LedgerRange } from "./archive.js";
 import { RpcClient } from "./chain.js";
-import type { Point } from "./crypto/grumpkin.js";
+import type { EcdhRule, Point } from "./crypto/grumpkin.js";
 import { pointToBytes } from "./crypto/grumpkin.js";
 import { toHex } from "./crypto/field.js";
 import type { ConfidentialEvent } from "./events.js";
@@ -127,6 +127,12 @@ export interface RecoverOptions extends SeamOptions {
   onProgress?: (p: RecoveryProgress) => void;
   failOnIncomplete?: boolean;
   types?: readonly string[];
+  /**
+   * The deployment's ECDH rule, or `"auto"` (the default) to determine it
+   * against chain state. Pin it when the deployment is known: it halves the
+   * work and makes a mismatch report the rule rather than resolve it.
+   */
+  ecdhRule?: EcdhRule | "auto";
 }
 
 export class RecoveryError extends Error {
@@ -236,7 +242,30 @@ export async function recoverFromSigner(options: RecoverOptions): Promise<Recove
   });
 
   // ------------------------------------------------------------- 3. replay
-  const result = replay({ account, vk: keys.vk, events: sync.events });
+  //
+  // The ECDH rule is a property of the *deployment*, and the two live contract
+  // revisions disagree on it (see `EcdhRule`). Resolving it by replaying under
+  // each and keeping the one that re-commits to the on-chain points is sound
+  // precisely because step 7 is the arbiter: a wrong rule decrypts every
+  // incoming transfer to a different amount and a different blinding, and no
+  // such pair opens the chain's commitment. So this cannot turn a wrong balance
+  // into an accepted one — it can only tell two deployments apart.
+  const rules: EcdhRule[] =
+    options.ecdhRule === undefined || options.ecdhRule === "auto"
+      ? ["poseidon2", "x-only"]
+      : [options.ecdhRule];
+
+  let result = replay({ account, vk: keys.vk, events: sync.events, ecdhRule: rules[0]! });
+  let checked = verifyAgainstChain(result.spendable, result.receiving, chain);
+  for (const rule of rules.slice(1)) {
+    if (checked.ok) break;
+    const attempt = replay({ account, vk: keys.vk, events: sync.events, ecdhRule: rule });
+    const attemptChecked = verifyAgainstChain(attempt.spendable, attempt.receiving, chain);
+    if (attemptChecked.ok) {
+      result = attempt;
+      checked = attemptChecked;
+    }
+  }
 
   report({
     phase: "replay",
@@ -275,7 +304,6 @@ export async function recoverFromSigner(options: RecoverOptions): Promise<Recove
    */
   const historyReachesRegistration = result.t0Anchor !== "stream-start";
 
-  const checked = verifyAgainstChain(result.spendable, result.receiving, chain);
   const verification: VerificationResult =
     checked.ok || historyReachesRegistration
       ? checked
@@ -338,9 +366,12 @@ function describeReplay(r: ReplayResult): string {
       : r.t0Anchor === "register"
         ? `T_0 = register at ledger ${r.t0?.ledgerSeq} (no merge before the checkpoint)`
         : "T_0 unresolved — the history does not reach registration";
+  // The rule is named only when it is not the specified one, so the common
+  // line stays about the history rather than about a compatibility detail.
+  const rule = r.ecdhRule === "poseidon2" ? "" : `; ECDH rule ${r.ecdhRule} (this deployment's)`;
   return (
     `${anchor}; ${r.counts.deposits} deposits, ${r.counts.incomingTransfers} incoming transfers, ` +
-    `${r.counts.merges} merges folded, ${r.counts.checkpointsSkipped} checkpoints skipped`
+    `${r.counts.merges} merges folded, ${r.counts.checkpointsSkipped} checkpoints skipped${rule}`
   );
 }
 

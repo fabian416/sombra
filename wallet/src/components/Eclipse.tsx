@@ -126,12 +126,16 @@ export function Eclipse({
       <circle cx={c} cy={c} r={glow} fill={`url(#corona-${uid})`} />
 
       {/* The streamers turn; the disc below them does not. */}
+      {/* No SVG filter on this group. It rotates, and rotating a filtered group
+          forces the Gaussian blur to re-rasterize every frame — enough to peg
+          the main thread on a page that has several of these. The streamers are
+          softened with opacity and rounded caps instead. */}
       <g
-        filter={isMark ? undefined : `url(#soft-${uid})`}
-        opacity={t}
+        opacity={t * 0.85}
         style={{
           transformOrigin: "center",
           animation: `corona-drift ${spin}s linear infinite`,
+          willChange: "transform",
         }}
       >
         {rays.map((ray, i) => (

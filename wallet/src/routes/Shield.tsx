@@ -10,6 +10,7 @@ import {
   cx,
 } from "../components/ui";
 import { useSombra } from "../state/SombraProvider";
+import { useOperationFlow } from "../lib/useOperationFlow";
 import type { TxReceipt } from "../lib/client";
 import {
   formatAmount,
@@ -25,9 +26,12 @@ export function Shield() {
   const { client, balances, refresh } = useSombra();
   const [direction, setDirection] = useState<Direction>("deposit");
   const [amount, setAmount] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [invalid, setInvalid] = useState<string | null>(null);
   const [receipt, setReceipt] = useState<TxReceipt | null>(null);
+  const flow = useOperationFlow<TxReceipt>();
+
+  const busy = flow.busy;
+  const error = invalid ?? flow.error;
 
   const shielded = balances.shielded;
   const publicAmount = balances.public?.amount ?? 0n;
@@ -36,35 +40,36 @@ export function Shield() {
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError(null);
+    setInvalid(null);
     setReceipt(null);
+    flow.reset();
 
     let parsed: bigint;
     try {
       parsed = parseAmount(amount);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Check the amount.");
+      setInvalid(err instanceof Error ? err.message : "Check the amount.");
       return;
     }
     if (parsed === 0n) {
-      setError("Enter an amount above zero.");
+      setInvalid("Enter an amount above zero.");
       return;
     }
 
-    setBusy(true);
-    try {
-      const result = depositing
-        ? await client.shield(parsed)
-        : await client.unshield(parsed);
+    const result = await flow.run(
+      () => (depositing ? client.shield(parsed) : client.unshield(parsed)),
+      {
+        success: depositing ? "Deposit confirmed" : "Withdrawal confirmed",
+        failure: depositing ? "Deposit failed" : "Withdrawal failed",
+        describe: (r) =>
+          `${formatAmount(r.amount)} XLM · ledger ${formatLedger(r.ledger)}`,
+      },
+    );
+
+    if (result) {
       setReceipt(result);
       setAmount("");
       await refresh();
-    } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "The transaction didn't go through.",
-      );
-    } finally {
-      setBusy(false);
     }
   };
 
@@ -87,8 +92,9 @@ export function Shield() {
                 aria-selected={direction === id}
                 onClick={() => {
                   setDirection(id);
-                  setError(null);
+                  setInvalid(null);
                   setReceipt(null);
+                  flow.reset();
                 }}
                 className={cx(
                   "eyebrow rounded-full px-4 py-2 transition-colors",
@@ -116,6 +122,14 @@ export function Shield() {
             }
           />
           <form onSubmit={submit} className="space-y-5 px-5 py-5">
+            {/* No clear-to-cipher sweep here: the amount crossing the pool
+                boundary is public on chain, and animating it as encryption
+                would misrepresent what the ledger records. */}
+            <Notice>
+              {depositing
+                ? "This deposit is public; what follows is not."
+                : "This withdrawal is public; what preceded it is not."}
+            </Notice>
             <Field
               label="Amount"
               placeholder="0.0000000"
@@ -129,11 +143,7 @@ export function Shield() {
             {error && <Notice tone="warn">{error}</Notice>}
 
             <Button type="submit" variant="primary" busy={busy}>
-              {busy
-                ? "Building proof"
-                : depositing
-                  ? "Deposit"
-                  : "Withdraw"}
+              {depositing ? "Deposit" : "Withdraw"}
             </Button>
 
             {receipt && (

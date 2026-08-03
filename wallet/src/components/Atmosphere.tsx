@@ -1,8 +1,8 @@
-import { useEffect, useRef } from "react";
+import { useMemo } from "react";
 
 /**
- * The layer everything else floats over: a cyan wash from the top, two blurred
- * orbs pushed partly off-canvas, and a drifting starfield.
+ * The layer everything else floats over: a cyan wash from the top, two soft
+ * orbs pushed partly off-canvas, and a static starfield that twinkles in CSS.
  *
  * The starfield is ours rather than a generic particle field — Sombra is named
  * for a shadow cast across a sky, so the sky is the one thing that should be
@@ -13,109 +13,104 @@ export function Atmosphere() {
     <>
       <Starfield />
       <div className="atmosphere-wash" aria-hidden />
+      {/* Painted as radial gradients rather than blurred solids. A
+          `filter: blur(150px)` on a 500px element is one of the most expensive
+          things a page can ask for, it is repainted on every composite, and at
+          these radii the two are visually indistinguishable. */}
       <div
-        className="orb -left-40 -top-32 h-[520px] w-[520px] bg-cyan/20"
+        className="orb -left-40 -top-32 h-[520px] w-[520px]"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(56,226,255,0.16) 0%, rgba(56,226,255,0.06) 45%, transparent 70%)",
+        }}
         aria-hidden
       />
       <div
-        className="orb -bottom-48 -right-40 h-[440px] w-[440px] bg-indigo-500/25"
+        className="orb -bottom-48 -right-40 h-[440px] w-[440px]"
+        style={{
+          background:
+            "radial-gradient(circle, rgba(99,102,241,0.18) 0%, rgba(99,102,241,0.06) 45%, transparent 70%)",
+        }}
         aria-hidden
       />
     </>
   );
 }
 
-interface Star {
-  x: number;
-  y: number;
-  r: number;
-  base: number;
-  phase: number;
-  drift: number;
+/**
+ * A starfield that paints once and twinkles on the compositor.
+ *
+ * Two earlier versions of this were worse. A requestAnimationFrame loop never
+ * lets the page reach idle and keeps a core warm for the whole session. A
+ * canvas fixed over the viewport is cheap to paint but opaque to anything that
+ * inspects the page, including our own screenshot tooling.
+ *
+ * Plain SVG circles have neither problem: the browser paints them once, an
+ * opacity animation runs entirely on the compositor, and the field is ordinary
+ * DOM. Two layers on offset cycles read as individual stars twinkling.
+ */
+function Starfield() {
+  return (
+    <>
+      <StarLayer seed={1} durationSec={7} delaySec={0} />
+      <StarLayer seed={2} durationSec={11} delaySec={-4} />
+    </>
+  );
 }
 
-function Starfield() {
-  const canvas = useRef<HTMLCanvasElement>(null);
+const FIELD_W = 1600;
+const FIELD_H = 900;
 
-  useEffect(() => {
-    const el = canvas.current;
-    if (!el) return;
-    const ctx = el.getContext("2d");
-    if (!ctx) return;
-
-    const reduced = window.matchMedia(
-      "(prefers-reduced-motion: reduce)",
-    ).matches;
-
-    let stars: Star[] = [];
-    let frame = 0;
-    let width = 0;
-    let height = 0;
-
-    const resize = () => {
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      width = window.innerWidth;
-      height = window.innerHeight;
-      el.width = width * dpr;
-      el.height = height * dpr;
-      el.style.width = `${width}px`;
-      el.style.height = `${height}px`;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-
-      // Density by area, so a laptop and a projector look the same.
-      const count = Math.round((width * height) / 9_000);
-      stars = Array.from({ length: count }, () => ({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        r: Math.random() * 1.1 + 0.25,
-        base: Math.random() * 0.45 + 0.12,
-        phase: Math.random() * Math.PI * 2,
-        drift: Math.random() * 0.02 + 0.004,
-      }));
+function StarLayer({
+  seed,
+  durationSec,
+  delaySec,
+}: {
+  seed: number;
+  durationSec: number;
+  delaySec: number;
+}) {
+  // Deterministic, so the sky is the same on every render and every reload.
+  const stars = useMemo(() => {
+    let s = seed * 9871;
+    const rand = () => {
+      s = (s * 1664525 + 1013904223) % 4294967296;
+      return s / 4294967296;
     };
-
-    const draw = () => {
-      ctx.clearRect(0, 0, width, height);
-      const t = frame / 60;
-      for (const star of stars) {
-        const twinkle = reduced
-          ? star.base
-          : star.base + Math.sin(t + star.phase) * 0.16;
-        const alpha = Math.max(0.04, twinkle);
-        ctx.beginPath();
-        ctx.arc(star.x, star.y, star.r, 0, Math.PI * 2);
+    return Array.from({ length: 70 }, () => {
+      const r = rand() * 1.5 + 0.4;
+      return {
+        cx: rand() * FIELD_W,
+        cy: rand() * FIELD_H,
+        r,
         // Bright stars pick up the cyan; the rest stay white so the accent
         // still reads as an accent.
-        ctx.fillStyle =
-          star.r > 1
-            ? `rgba(56, 226, 255, ${alpha})`
-            : `rgba(255, 255, 255, ${alpha * 0.8})`;
-        ctx.fill();
-
-        if (!reduced) {
-          star.y += star.drift;
-          if (star.y > height) star.y = 0;
-        }
-      }
-      frame += 1;
-      raf = requestAnimationFrame(draw);
-    };
-
-    let raf = 0;
-    resize();
-    raf = requestAnimationFrame(draw);
-    window.addEventListener("resize", resize);
-    return () => {
-      cancelAnimationFrame(raf);
-      window.removeEventListener("resize", resize);
-    };
-  }, []);
+        fill: r > 1.4 ? "#38E2FF" : "#FFFFFF",
+        opacity: rand() * 0.45 + 0.15,
+      };
+    });
+  }, [seed]);
 
   return (
-    <canvas
-      ref={canvas}
-      className="pointer-events-none fixed inset-0 z-0"
+    <svg
+      className="pointer-events-none fixed inset-0 z-0 h-full w-full"
+      viewBox={`0 0 ${FIELD_W} ${FIELD_H}`}
+      preserveAspectRatio="xMidYMid slice"
+      style={{
+        animation: `star-twinkle ${durationSec}s ease-in-out ${delaySec}s infinite`,
+      }}
       aria-hidden
-    />
+    >
+      {stars.map((star, i) => (
+        <circle
+          key={i}
+          cx={star.cx}
+          cy={star.cy}
+          r={star.r}
+          fill={star.fill}
+          opacity={star.opacity}
+        />
+      ))}
+    </svg>
   );
 }

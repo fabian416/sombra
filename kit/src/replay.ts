@@ -30,7 +30,7 @@
  *     at step 7. `test/replay.test.ts` pins this case directly.
  */
 import { FR, FQ, fqAdd, fqMod } from "./crypto/field.js";
-import { type Point, commit, ecdh, pointsEqual } from "./crypto/grumpkin.js";
+import { type EcdhRule, type Point, commit, ecdh, pointsEqual } from "./crypto/grumpkin.js";
 import { decryptAmount, decryptBalance, deriveSpendR, deriveTransferBlinding } from "./crypto/poseidon2.js";
 import {
   type ConfidentialEvent,
@@ -66,6 +66,13 @@ export interface ReplayInput {
    * merged two sources does not have to get the boundary exactly right.
    */
   events: readonly ConfidentialEvent[];
+  /**
+   * Which ECDH rule the *deployment* implements. Defaults to the specified
+   * `poseidon2`; a deployment on the demo's contract revision needs `x-only`.
+   * Getting it wrong cannot produce a wrong balance — only a step 7 mismatch —
+   * which is what lets `recoverFromSigner` resolve it by trying both.
+   */
+  ecdhRule?: EcdhRule;
 }
 
 export interface ReplayResult {
@@ -101,6 +108,8 @@ export interface ReplayResult {
    * blinding (DESIGN.md §7.3).
    */
   spendableBlindingUnencodable: boolean;
+  /** The ECDH rule this replay ran under. */
+  ecdhRule: EcdhRule;
 }
 
 /**
@@ -170,7 +179,7 @@ export function resolveT0(
  * this function needs nothing but events and `vk`.
  */
 export function replay(input: ReplayInput): ReplayResult {
-  const { account, vk } = input;
+  const { account, vk, ecdhRule = "poseidon2" } = input;
   const events = sortEvents(input.events);
 
   // ---- steps 1-4: the spendable side, from the latest checkpoint alone.
@@ -210,7 +219,7 @@ export function replay(input: ReplayInput): ReplayResult {
         counts.deposits++;
       } else {
         const { rEPoint, vTilde, sigma } = incomingTransferPayload(e);
-        const s = ecdh(vk, rEPoint);
+        const s = ecdh(vk, rEPoint, ecdhRule);
         receiving = {
           v: receiving.v + decryptAmount(vTilde, s, sigma),
           // Blindings accumulate mod q, never mod r (SDK.md §4.6). Reducing
@@ -254,6 +263,7 @@ export function replay(input: ReplayInput): ReplayResult {
     eventsApplied,
     eventsConsidered,
     counts,
+    ecdhRule,
     // `r` is already the canonical F_q representative; values in [r, q) are the
     // ones with no single-`Field` encoding.
     spendableBlindingUnencodable: fqMod(spendable.r) >= FR,

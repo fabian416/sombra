@@ -17,6 +17,7 @@ import { type Point, pointFromBytes } from "./crypto/grumpkin.js";
 import type { EventPosition, RawEvent } from "./events.js";
 import type { OnChainAccount } from "./replay.js";
 import {
+  type ScVal,
   accountEntryKey,
   contractDataLedgerKey,
   decodeContractDataEntry,
@@ -110,6 +111,42 @@ export function positionOfRpcEvent(e: WireRpcEvent): EventPosition {
     opIndex: e.operationIndex ?? Number(toid & TOID_OP_MASK),
     eventIndex: Number(orderStr ?? "0"),
   };
+}
+
+/**
+ * Field names of the `ConfidentialAccount` entry, in the order they are tried.
+ *
+ * A `#[contracttype]` struct is stored as an `ScMap` keyed by its **Rust field
+ * names**, so the wire form tracks the contract source — and the two live
+ * revisions of that source disagree. `stellar-contracts`'s confidential module
+ * declares `spending_public_key` / `spendable_commitment` /
+ * `receiving_commitment` (`storage.rs:53-64`); the revision the CT demo ships,
+ * which is the WASM this history was actually created against, declares
+ * `spending_key` / `spendable_balance` / `receiving_balance`.
+ *
+ * Both are read, newest name first. The alternative is a package that decodes
+ * only against one of the two deployments in existence, and the symptom is not
+ * a wrong balance but a hard decode failure at the doorstep of step 7.
+ */
+const ACCOUNT_FIELDS = {
+  spendingPublicKey: ["spending_public_key", "spending_key"],
+  viewingPublicKey: ["viewing_public_key"],
+  spendableCommitment: ["spendable_commitment", "spendable_balance"],
+  receivingCommitment: ["receiving_commitment", "receiving_balance"],
+  auditorId: ["auditor_id"],
+} as const;
+
+/** First present name wins; absence is reported naming every name tried. */
+function pick(fields: Map<string, ScVal>, names: readonly string[]): ScVal {
+  for (const n of names) {
+    const v = fields.get(n);
+    if (v !== undefined) return v;
+  }
+  throw new RpcError(
+    `ConfidentialAccount entry has none of ${names.join(" / ")} — it holds ` +
+      `${[...fields.keys()].join(", ")}`,
+    "getLedgerEntries",
+  );
 }
 
 export class RpcClient {
@@ -265,15 +302,15 @@ export class RpcClient {
     if (raw === undefined) throw new RpcError("ledger entry carried no XDR", "getLedgerEntries");
 
     const fields = scMapFields(decodeContractDataEntry(raw).val, "ConfidentialAccount");
-    const point = (name: string): Point =>
-      pointFromBytes(scBytes(fields.get(name), `ConfidentialAccount.${name}`));
+    const point = (names: readonly string[]): Point =>
+      pointFromBytes(scBytes(pick(fields, names), `ConfidentialAccount.${names[0]}`));
 
     return {
-      spendingPublicKey: point("spending_public_key"),
-      viewingPublicKey: point("viewing_public_key"),
-      spendableCommitment: point("spendable_commitment"),
-      receivingCommitment: point("receiving_commitment"),
-      auditorId: scU32(fields.get("auditor_id"), "ConfidentialAccount.auditor_id"),
+      spendingPublicKey: point(ACCOUNT_FIELDS.spendingPublicKey),
+      viewingPublicKey: point(ACCOUNT_FIELDS.viewingPublicKey),
+      spendableCommitment: point(ACCOUNT_FIELDS.spendableCommitment),
+      receivingCommitment: point(ACCOUNT_FIELDS.receivingCommitment),
+      auditorId: scU32(pick(fields, ACCOUNT_FIELDS.auditorId), "ConfidentialAccount.auditor_id"),
     };
   }
 }

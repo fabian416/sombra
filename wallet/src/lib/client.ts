@@ -69,6 +69,13 @@ export interface TxReceipt {
   amount: Stroops;
   /** Present when the amount was encrypted on-chain rather than in the clear. */
   confidential: boolean;
+  /**
+   * True when no transaction was submitted and this receipt describes a
+   * simulated operation. The live client sets it on every operation whose
+   * proving happens Node-side, so a fabricated hash can never be mistaken for
+   * one a ledger actually holds.
+   */
+  simulated?: boolean;
 }
 
 export type RecoveryPhase =
@@ -148,6 +155,13 @@ export interface SwapResult extends SwapQuote {
 export interface SombraClient {
   /** Detect Freighter, request access, return the active identity. */
   connectFreighter(): Promise<WalletIdentity>;
+
+  /**
+   * Take on a session obtained without a prompt — a silent restore, or the
+   * preview identity. Implementations that read per-account chain state need
+   * it; the mock does not, so it is optional and callers use `?.()`.
+   */
+  adoptIdentity?(identity: WalletIdentity): void;
 
   getPublicBalance(): Promise<PublicBalance>;
   getConfidentialBalance(): Promise<ConfidentialBalance>;
