@@ -1,0 +1,212 @@
+@import "tailwindcss";
+
+@import "@fontsource-variable/archivo";
+@import "@fontsource/ibm-plex-sans/400.css";
+@import "@fontsource/ibm-plex-sans/500.css";
+@import "@fontsource/ibm-plex-sans/600.css";
+@import "@fontsource/ibm-plex-mono/400.css";
+@import "@fontsource/ibm-plex-mono/500.css";
+@import "@fontsource/ibm-plex-mono/600.css";
+
+/*
+  Sombra design tokens — a total solar eclipse.
+  The sky at totality is not black: it is deep violet, ringed by a 360-degree
+  sunset horizon, with a pearl corona and magenta hydrogen-alpha prominences.
+
+  The palette carries meaning, not decoration:
+    horizon (warm amber)  = public, on-chain, visible to everyone
+    corona  (pearl blue)  = confidential, revealed in-wallet only
+    penumbra(violet)      = the shielded pool (SPP)
+    chroma  (prominence)  = risk, loss, destructive action
+*/
+@theme {
+  --color-umbra: #07050d;
+  --color-umbra-lift: #0c0915;
+  --color-penumbra: #110c1b;
+  --color-limb: #251c3a;
+  --color-limb-bright: #3a2d59;
+  --color-ash: #8b82a6;
+  --color-corona: #e9eef8;
+  --color-corona-dim: #b8c6de;
+  --color-horizon: #f2a03d;
+  --color-horizon-dim: #a5702c;
+  --color-chroma: #ff4d6d;
+  --color-pool: #9b7ce8;
+
+  --font-display: "Archivo Variable", "Archivo", ui-sans-serif, system-ui,
+    sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+
+  --radius-panel: 3px;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-limb);
+  }
+
+  html {
+    background-color: var(--color-umbra);
+    color-scheme: dark;
+  }
+
+  body {
+    margin: 0;
+    min-height: 100dvh;
+    background-color: var(--color-umbra);
+    color: var(--color-corona);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.55;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* The wordmark and display headings run wide and monumental — an
+     observatory bulletin, not a SaaS dashboard. */
+  h1,
+  h2,
+  .display {
+    font-family: var(--font-display);
+    font-variation-settings: "wdth" 118;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.05;
+  }
+
+  input,
+  button,
+  select,
+  textarea {
+    font: inherit;
+    color: inherit;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-horizon);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-horizon);
+    color: var(--color-umbra);
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-umbra);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-limb);
+    border: 3px solid var(--color-umbra);
+  }
+}
+
+@layer components {
+  /* Eyebrow labels: small, wide-tracked mono. Used to name the layer a piece
+     of the UI operates on (CT / SPP / ARCHIVE / PUBLIC). */
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-ash);
+  }
+
+  .panel {
+    background-color: var(--color-penumbra);
+    border: 1px solid var(--color-limb);
+    border-radius: var(--radius-panel);
+  }
+
+  /* Numerals are data. All of them are mono, tabular, and never wrap. */
+  .numeral {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+  }
+}
+
+/* The 360-degree horizon ring of a total eclipse, pinned to the bottom edge of
+   the viewport. Ambient on every screen; the only always-on warm light. */
+.horizon-glow {
+  position: fixed;
+  inset-inline: 0;
+  bottom: 0;
+  height: 46vh;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(
+    120% 100% at 50% 118%,
+    rgba(242, 160, 61, 0.17) 0%,
+    rgba(242, 160, 61, 0.07) 32%,
+    rgba(155, 124, 232, 0.05) 55%,
+    transparent 78%
+  );
+}
+
+/* Corona ignition — used on the Recover stage as each step lands. */
+@keyframes corona-drift {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes corona-breathe {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes log-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.animate-rise {
+  animation: rise 0.4s cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+.animate-log-in {
+  animation: log-in 0.28s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
