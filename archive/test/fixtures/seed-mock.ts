@@ -1,6 +1,15 @@
 /**
- * Seed a synthetic event history so the API is demoable before the
- * confidential-token contracts are deployed.
+ * Seed a synthetic event history — a **test fixture**, not a data source.
+ *
+ * It lives under `test/` and stamps `meta.source = "seeded-fixture"` on every
+ * database it writes, which `/v1/health` reports and which the server refuses
+ * to serve without `ALLOW_FIXTURE_DB=1`. The point is that a seeded archive
+ * must never be mistakable for one that ingested a real chain: an archive whose
+ * conformance properties are demonstrated against data this repo authored has
+ * demonstrated nothing. The real deployment ingests the testnet contract.
+ *
+ * What it is legitimately for: driving the conformance tests, and exercising
+ * the API before a contract is deployed.
  *
  * The events are fake but not fictional: topics and data are real XDR, built to
  * the exact shapes `stellar-contracts` publishes (`#[contractevent]` structs in
@@ -21,9 +30,14 @@
 import { Address, Keypair, StrKey, xdr } from "@stellar/stellar-sdk";
 import { createHash } from "node:crypto";
 
-import { loadConfig } from "./config.js";
-import { ArchiveDb, type ArchivedEvent } from "./db.js";
-import { attributeTopics, eventTypeOf, topicsToXdr } from "./events.js";
+import { loadConfig } from "../../src/config.js";
+import { ArchiveDb, type ArchivedEvent } from "../../src/db.js";
+import {
+  attributeTopics,
+  eventTypeOf,
+  formatSourceEventId,
+  topicsToXdr,
+} from "../../src/events.js";
 
 const START_LEDGER = Number.parseInt(process.env.MOCK_START_LEDGER ?? "3800000", 10);
 const LEDGER_CLOSE_INTERVAL = 5;
@@ -90,26 +104,27 @@ interface MockEventSpec {
   name: string;
   topics: xdr.ScVal[];
   data: xdr.ScVal;
+  /** Emitted by a sub-call that was rolled back; stored but not final state. */
+  reverted?: boolean;
 }
 
 function buildEvent(contractId: string, spec: MockEventSpec, index: number): ArchivedEvent {
   const topics = [sym(spec.name), ...spec.topics];
   const ledgerSeq = START_LEDGER + spec.ledgerOffset;
   const label = `${contractId}/${spec.name}/${spec.ledgerOffset}/${index}`;
+  // A single transaction per ledger in the mock; the ordering machinery is
+  // still exercised, since positions are compared as a whole tuple.
+  const coords = { ledgerSeq, txApplicationOrder: 1, opIndex: 0, eventIndex: 0 };
   return {
     contractId,
-    ledgerSeq,
+    ...coords,
     ledgerCloseTime: BASE_CLOSE_TIME + spec.ledgerOffset * LEDGER_CLOSE_INTERVAL,
     txHash: seededTxHash(label),
-    // A single transaction per ledger in the mock; the ordering machinery is
-    // still exercised, since the total order is compared as a triple.
-    txApplicationOrder: 1,
-    opIndex: 0,
-    eventIndex: 0,
     topicsXdr: topicsToXdr(topics),
     dataXdr: spec.data.toXDR("base64"),
     eventType: eventTypeOf(topics),
-    rpcEventId: null,
+    inSuccessfulContractCall: spec.reverted !== true,
+    rpcEventId: formatSourceEventId(coords),
     topics: attributeTopics(topics),
   };
 }
@@ -323,8 +338,14 @@ function main(): void {
       process.stdout.write(`[seed] ${contractId}: ${inserted} new events, coverage ${lo}-${hi}\n`);
     }
 
+    // The fixture history starts at the contract's first event by
+    // construction, so the fixture archive genuinely holds it all.
+    db.setRetentionIntent(contractId, lo, true);
     db.setIngestState(contractId, null, hi + 1);
   }
+
+  // Indelible provenance stamp: this DB holds authored data, not chain data.
+  db.setSource("seeded-fixture");
 
   // A plausible chain head so /v1/health can report a lag without a live RPC.
   const head = START_LEDGER + 400;

@@ -79,15 +79,21 @@ export interface SourcePage {
   latestLedger: number;
 }
 
-export interface GetEventsArgs {
-  contractId: string;
-  /** Inclusive. Mutually exclusive with `cursor`. */
-  startLedger?: number;
-  /** EXCLUSIVE upper bound. */
-  endLedger?: number;
-  cursor?: string;
-  limit: number;
-}
+/**
+ * Ledger-range mode or cursor mode — never both. The RPC rejects the mix, and
+ * cursor mode admits no upper bound at all, so a bounded backfill has to clamp
+ * its own coverage claims once it resumes from a cursor (see `Ingester`).
+ */
+export type GetEventsArgs =
+  | {
+      contractId: string;
+      /** Inclusive. */
+      startLedger: number;
+      /** EXCLUSIVE upper bound. */
+      endLedger?: number;
+      limit: number;
+    }
+  | { contractId: string; cursor: string; limit: number };
 
 export class RpcSource {
   readonly server: StellarRpc.Server;
@@ -126,13 +132,18 @@ export class RpcSource {
    * decode this archive actually needs is only the topic index (§3.3).
    */
   async getEvents(args: GetEventsArgs): Promise<SourcePage> {
-    const req: StellarRpc.Server.GetEventsRequest = {
-      filters: [{ type: "contract", contractIds: [args.contractId] }],
-      limit: args.limit,
-    };
-    if (args.cursor !== undefined) req.cursor = args.cursor;
-    else if (args.startLedger !== undefined) req.startLedger = args.startLedger;
-    if (args.endLedger !== undefined) req.endLedger = args.endLedger;
+    const filters: StellarRpc.Api.EventFilter[] = [
+      { type: "contract", contractIds: [args.contractId] },
+    ];
+    const req: StellarRpc.Api.GetEventsRequest =
+      "cursor" in args
+        ? { filters, cursor: args.cursor, limit: args.limit }
+        : {
+            filters,
+            startLedger: args.startLedger,
+            ...(args.endLedger !== undefined ? { endLedger: args.endLedger } : {}),
+            limit: args.limit,
+          };
 
     const resp = (await this.server._getEvents(req)) as unknown as {
       events: RawSourceEvent[];

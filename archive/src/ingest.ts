@@ -31,10 +31,33 @@ export interface IngestStats {
   coveredThrough: number | null;
 }
 
-/** Map a source event onto the §3.1 archived record. */
+/**
+ * Map a source event onto the §3.1 archived record.
+ *
+ * Decoding is deliberately best-effort and never fatal. §3.1 makes the
+ * verbatim XDR the payload and the decoded columns merely something an indexer
+ * "MAY additionally store"; §4 ("Fidelity") puts decoding on the read side. So
+ * an event whose topics this build's XDR decoder cannot parse is still
+ * archived in full — it just arrives without an event type or topic index.
+ *
+ * This is not hypothetical. Testnet is on protocol 27, and a decoder predating
+ * a protocol's new `ScAddress` variants throws on any topic using one. Letting
+ * that abort ingestion would mean a stale dependency silently punching a
+ * permanent hole in an archive whose entire purpose is that no hole exists —
+ * the bytes were on the wire and recoverable, and only our reading of them was
+ * behind. Storage must outlive the decoder.
+ */
 export function toArchivedEvent(raw: RawSourceEvent): ArchivedEvent {
   const coords = eventCoords(raw);
-  const topics = topicsFromXdr(raw.topic);
+  let eventType: string | null = null;
+  let topics: ArchivedEvent["topics"] = [];
+  try {
+    const decoded = topicsFromXdr(raw.topic);
+    eventType = eventTypeOf(decoded);
+    topics = attributeTopics(decoded);
+  } catch {
+    // Undecodable under this build: keep the bytes, lose only the index.
+  }
   return {
     contractId: raw.contractId,
     ledgerSeq: coords.ledgerSeq,
@@ -45,14 +68,18 @@ export function toArchivedEvent(raw: RawSourceEvent): ArchivedEvent {
     eventIndex: coords.eventIndex,
     topicsXdr: raw.topic,
     dataXdr: raw.value,
-    eventType: eventTypeOf(topics),
+    eventType,
+    // Default true: a source that omits the flag is reporting final state.
+    inSuccessfulContractCall: raw.inSuccessfulContractCall !== false,
     rpcEventId: raw.id,
-    topics: attributeTopics(topics),
+    topics,
   };
 }
 
 export class Ingester {
   private running = false;
+  /** True once the background loop has been started at least once. */
+  private started = false;
   private stopped = false;
   private timer: NodeJS.Timeout | null = null;
   private resolveStopped: (() => void) | null = null;
@@ -69,6 +96,7 @@ export class Ingester {
   start(): void {
     if (this.running) return;
     this.running = true;
+    this.started = true;
     this.stopped = false;
     void this.loop();
   }
@@ -88,6 +116,12 @@ export class Ingester {
   }
 
   private async loop(): Promise<void> {
+    try {
+      await this.recordRetentionIntent();
+    } catch (err) {
+      this.log("could not record retention intent", { error: String(err) });
+    }
+
     // §4 "Gaps": look for holes left by earlier downtime before streaming the
     // head, while their ledgers may still be inside the source's retention.
     try {
@@ -132,13 +166,18 @@ export class Ingester {
   // --------------------------------------------------------------- polling
 
   /**
-   * Advance one contract by a single page.
+   * Advance one contract by one bounded window.
    *
-   * The cursor and the coverage bookkeeping are deliberately separate. The
-   * cursor says where to *read* next; `windowStart` says where the unproven
-   * region *begins*. They diverge whenever a page ends mid-ledger, and
-   * conflating them is what would let a half-scanned ledger be recorded as
-   * covered.
+   * The window is closed on both ends before the first request goes out, and
+   * `scanRange` drains it. That matters for more than tidiness: it is what
+   * lets coverage rest on the *request*. The earlier shape asked open-endedly
+   * from `windowStart` and, on a short page, claimed coverage through the
+   * node's reported `latestLedger` — which assumes `getEvents` always scans to
+   * the head when it returns fewer than `limit` events. That is plausible
+   * behaviour of stellar-rpc but is not part of the JSON-RPC contract, and a
+   * provider imposing its own scan bound would have had the archive record
+   * coverage over ledgers nobody looked at, making C3 report an incomplete
+   * history as complete. Bounding the request removes the assumption.
    */
   async pollContract(contractId: string): Promise<IngestStats> {
     const health = await this.source.health();
@@ -148,7 +187,6 @@ export class Ingester {
 
     const state = this.db.getIngestState(contractId);
     let windowStart = state?.lastLedger ?? this.coldStartLedger(health.oldestLedger);
-    let cursor = state?.pagingToken ?? null;
 
     // §4 "Freshness": the archive fell below the source's retention floor, so
     // [windowStart, oldestLedger - 1] is gone from this source. Skip forward
@@ -161,40 +199,26 @@ export class Ingester {
         missingTo: health.oldestLedger - 1,
       });
       windowStart = health.oldestLedger;
-      cursor = null;
     }
 
     if (windowStart > health.latestLedger) {
       return { contractId, fetched: 0, inserted: 0, more: false, coveredThrough: null };
     }
 
-    const page = await this.source.getEvents(
-      cursor !== null
-        ? { contractId, cursor, limit: this.cfg.pageLimit }
-        : { contractId, startLedger: windowStart, limit: this.cfg.pageLimit },
+    const windowEnd = Math.min(
+      windowStart + this.cfg.pollWindowLedgers - 1,
+      health.latestLedger,
     );
+    const result = await this.scanRange(contractId, windowStart, windowEnd);
+    this.db.setIngestState(contractId, null, windowEnd + 1);
 
-    const inserted = this.db.insertEvents(page.events.map(toArchivedEvent));
-    const full = page.events.length >= this.cfg.pageLimit;
-
-    if (full) {
-      const lastLedger = page.events[page.events.length - 1]!.ledger;
-      // The limit may have cut this ledger in half: prove only up to the one
-      // before it, and re-enter it through the cursor.
-      this.db.recordIngestedRange(contractId, windowStart, lastLedger - 1);
-      this.db.setIngestState(contractId, page.cursor, lastLedger);
-      return { contractId, fetched: page.events.length, inserted, more: true, coveredThrough: lastLedger - 1 };
-    }
-
-    // Short page: the node scanned right through to the head it reported.
-    this.db.recordIngestedRange(contractId, windowStart, page.latestLedger);
-    this.db.setIngestState(contractId, null, page.latestLedger + 1);
     return {
       contractId,
-      fetched: page.events.length,
-      inserted,
-      more: false,
-      coveredThrough: page.latestLedger,
+      fetched: result.fetched,
+      inserted: result.inserted,
+      // More chain remains beyond this window; drain it without sleeping.
+      more: windowEnd < health.latestLedger,
+      coveredThrough: windowEnd,
     };
   }
 
@@ -211,6 +235,41 @@ export class Ingester {
     const floor = oldestLedger + this.cfg.retentionMargin;
     if (this.cfg.startLedger === "auto") return floor;
     return Math.max(this.cfg.startLedger, oldestLedger);
+  }
+
+  /**
+   * Record, per contract, the ledger from which this archive *intends* to hold
+   * history, and whether that intent covers the contract's whole life (§5).
+   *
+   * The distinction is the difference between a conforming archive and a 7-day
+   * cache. `START_LEDGER=auto` starts at the RPC's retention floor, so the
+   * archive has never held anything older than the window it exists to
+   * outlive. That is a fine dev default but a §5 violation in production, and
+   * without this marker it is indistinguishable at the API from a deployment
+   * started at the contract's deploy ledger.
+   *
+   * Written once and never overwritten: it is the archive's standing intent,
+   * not a fact about the current process.
+   */
+  async recordRetentionIntent(): Promise<void> {
+    if (this.cfg.contractIds.length === 0) return;
+    const health = await this.source.health();
+    for (const contractId of this.cfg.contractIds) {
+      if (this.db.getRetentionIntent(contractId) !== null) continue;
+      const from = this.coldStartLedger(health.oldestLedger);
+      const configured = this.cfg.startLedger !== "auto";
+      this.db.setRetentionIntent(contractId, from, configured);
+      if (!configured) {
+        this.log(
+          "WARNING START_LEDGER=auto: starting at the RPC retention floor, so this archive " +
+            "has never held history older than the ~7-day window. INDEXER.md §5 requires " +
+            "retaining full per-account history indefinitely; set START_LEDGER to the " +
+            "contract's deploy ledger for a conforming deployment. Reporting " +
+            "holds_full_history=false.",
+          { contract: contractId, retainsFrom: from },
+        );
+      }
+    }
   }
 
   // -------------------------------------------------------------- backfill
@@ -245,32 +304,60 @@ export class Ingester {
     }
   }
 
-  /** Drain a bounded ledger range, recording coverage as it is proven. */
-  private async scanRange(contractId: string, from: number, to: number): Promise<void> {
+  /**
+   * Drain a bounded ledger range, recording coverage only as it is proven.
+   *
+   * Only the first request can carry `endLedger` — resuming from a cursor
+   * drops the upper bound, since the RPC refuses to combine the two. So the
+   * bound is re-imposed here: a page reaching past `to` means everything up to
+   * `to` was scanned, and the scan stops there rather than claiming the extra.
+   */
+  async scanRange(
+    contractId: string,
+    from: number,
+    to: number,
+  ): Promise<{ fetched: number; inserted: number }> {
     let windowStart = from;
     let cursor: string | null = null;
+    let fetched = 0;
+    let inserted = 0;
+    if (to < from) return { fetched, inserted };
 
-    while (this.running || cursor === null) {
-      const page: Awaited<ReturnType<RpcSource["getEvents"]>> = await this.source.getEvents(
+    for (;;) {
+      const page = await this.source.getEvents(
         cursor !== null
-          ? { contractId, cursor, endLedger: to + 1, limit: this.cfg.pageLimit }
+          ? { contractId, cursor, limit: this.cfg.pageLimit }
           : { contractId, startLedger: windowStart, endLedger: to + 1, limit: this.cfg.pageLimit },
       );
-      this.db.insertEvents(page.events.map(toArchivedEvent));
+      fetched += page.events.length;
+      inserted += this.db.insertEvents(page.events.map(toArchivedEvent));
 
       if (page.events.length < this.cfg.pageLimit) {
-        // Exhausted the bounded window: everything up to `to` is proven.
+        // Window exhausted: everything through `to` is proven scanned.
         this.db.recordIngestedRange(contractId, windowStart, to);
-        return;
+        return { fetched, inserted };
       }
       const lastLedger = page.events[page.events.length - 1]!.ledger;
+      if (lastLedger > to) {
+        // Ran past the target window, so the target window is fully covered.
+        this.db.recordIngestedRange(contractId, windowStart, to);
+        return { fetched, inserted };
+      }
       this.db.recordIngestedRange(contractId, windowStart, lastLedger - 1);
       windowStart = lastLedger;
       cursor = page.cursor;
       if (cursor === null) {
         this.db.recordIngestedRange(contractId, windowStart, to);
-        return;
+        return { fetched, inserted };
       }
+      /*
+       * Cancellation breaks the loop rather than gating entry to it. Gating
+       * entry on `this.running` would make a directly-invoked scan (a one-shot
+       * backfill command, or a test) stop after a single page with the gap
+       * only partly filled — it under-claims coverage, so C3 stays honest, but
+       * the gap silently stops being backfilled.
+       */
+      if (this.started && !this.running) return { fetched, inserted };
     }
   }
 }

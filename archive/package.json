@@ -4,17 +4,21 @@
   "private": true,
   "description": "Sombra Archive — durable Stellar confidential-token event indexer (OpenZeppelin INDEXER.md)",
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "start": "tsx src/server.ts",
     "build": "tsc -p tsconfig.json",
-    "seed:mock": "tsx src/seed-mock.ts",
+    "seed:mock": "tsx test/fixtures/seed-mock.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
     "@fastify/cors": "^10.0.1",
-    "@stellar/stellar-sdk": "^13.1.0",
+    "@stellar/stellar-sdk": "^16.2.0",
     "better-sqlite3": "^11.7.0",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.0"
@@ -23,7 +27,8 @@
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.10.2",
     "tsx": "^4.19.2",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.10"
   },
   "license": "MIT"
 }

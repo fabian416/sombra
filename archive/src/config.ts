@@ -28,11 +28,19 @@ export interface Config {
   /** `"auto"` resolves to the source's oldest retained ledger at cold start. */
   startLedger: "auto" | number;
   retentionMargin: number;
+  /**
+   * Ledgers per polling request. Every scan is bounded by an explicit
+   * `endLedger` so coverage can be claimed from what the *request* asked the
+   * source to scan, never from the node's reported head (INDEXER.md §4).
+   */
+  pollWindowLedgers: number;
   dbPath: string;
   port: number;
   host: string;
   corsOrigin: string[] | true;
   apiOnly: boolean;
+  /** Permit serving a DB stamped as fixture-seeded. Off by default. */
+  allowFixtureDb: boolean;
 }
 
 export function loadConfig(): Config {
@@ -61,10 +69,12 @@ export function loadConfig(): Config {
     pageLimit: int("PAGE_LIMIT", 200),
     startLedger,
     retentionMargin: int("RETENTION_MARGIN", 60),
+    pollWindowLedgers: Math.max(1, int("POLL_WINDOW_LEDGERS", 1000)),
     dbPath: dbPathRaw === ":memory:" ? dbPathRaw : path.resolve(process.cwd(), dbPathRaw),
     port: int("PORT", 8787),
     host: str("HOST", "0.0.0.0"),
     corsOrigin,
     apiOnly: str("API_ONLY", "0") === "1",
+    allowFixtureDb: str("ALLOW_FIXTURE_DB", "0") === "1",
   };
 }

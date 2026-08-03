@@ -22,12 +22,37 @@ async function main(): Promise<void> {
   const db = new ArchiveDb(cfg.dbPath);
   const source = new RpcSource(cfg.rpcUrl);
 
+  /*
+   * Refuse to serve a fixture-seeded database by default. An archive's whole
+   * claim is that it holds real chain history; serving authored data over the
+   * same API, indistinguishably, would make every conformance property it
+   * demonstrates worthless. Opt in explicitly to demo the API without a chain.
+   */
+  if (db.getSource() === "seeded-fixture" && !cfg.allowFixtureDb) {
+    db.close();
+    throw new Error(
+      `refusing to serve ${cfg.dbPath}: it is stamped source="seeded-fixture" (written by ` +
+        `test/fixtures/seed-mock.ts), not ingested from a chain. Set ALLOW_FIXTURE_DB=1 to ` +
+        `serve it anyway for a UI demo, or point DB_PATH at an ingested archive.`,
+    );
+  }
+
   log("starting", {
     db: cfg.dbPath,
+    source: db.getSource(),
     rpc: cfg.rpcUrl,
     contracts: cfg.contractIds.length,
     apiOnly: cfg.apiOnly,
   });
+
+  if (cfg.apiOnly && cfg.contractIds.length > 0) {
+    // API_ONLY skips the loop that would otherwise stamp §5 intent.
+    try {
+      await new Ingester(db, source, cfg, log).recordRetentionIntent();
+    } catch (err) {
+      log("could not record retention intent", { error: String(err) });
+    }
+  }
 
   let ingester: Ingester | null = null;
   if (!cfg.apiOnly && cfg.contractIds.length > 0) {

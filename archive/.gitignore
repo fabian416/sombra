@@ -1,0 +1,6 @@
+# The archive itself. Durable per INDEXER.md §5, but it is generated state:
+# back it up, never commit it.
+data/
+*.db
+*.db-wal
+*.db-shm

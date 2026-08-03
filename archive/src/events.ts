@@ -73,6 +73,19 @@ export function eventCoords(raw: RawSourceEvent): EventCoords {
 }
 
 /**
+ * The inverse of `parseEventId`: pack a position back into the RPC's id form.
+ * Unlike the §2 triple this is unique per emitted event, so it is what clients
+ * should deduplicate on across the §1 seam.
+ */
+export function formatSourceEventId(coords: EventCoords): string {
+  const toid =
+    (BigInt(coords.ledgerSeq) << 32n) |
+    (BigInt(coords.txApplicationOrder) << 12n) |
+    BigInt(coords.opIndex);
+  return `${toid.toString().padStart(19, "0")}-${String(coords.eventIndex).padStart(10, "0")}`;
+}
+
+/**
  * The §2 event id: the triple `(ledger_seq, tx_hash, event_index)`. The same
  * event MUST carry the same id whether served from the archive or from RPC, so
  * a hybrid client can deduplicate across the seam — hence a formatting derived
