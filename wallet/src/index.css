@@ -4,7 +4,7 @@
 @import "@fontsource-variable/geist-mono";
 
 /*
-  Sombra design tokens — the team's Lunarys identity, applied to an eclipse.
+  Sombra design tokens — the team's brand identity, applied to an eclipse.
 
   Canvas is deep navy-black (#020617): space, not terminal. The single accent is
   neon cyan (#38E2FF), which is the chromatic complement of Stellar's yellow —
@@ -223,6 +223,24 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* The indeterminate scanline. Travels the height of whatever it covers. */
+@keyframes cipher-sweep {
+  0% {
+    top: -8%;
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    top: 100%;
+    opacity: 0;
   }
 }
 
