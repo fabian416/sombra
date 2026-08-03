@@ -43,7 +43,6 @@ import {
   DEPLOYMENT_FILE,
   KEYS_FILE,
   friendbotFund,
-  keyDerivationMessage,
   readVk,
   saveDeployment,
   saveKeys,
@@ -52,6 +51,7 @@ import {
   wasmPath,
   type Deployment,
 } from "./common.js";
+import { keyDerivationRecord } from "./derive.js";
 
 /** vk.bin basename → the `CircuitType` discriminant the verifier stores it under. */
 const VK_FILES: ReadonlyArray<[string, number]> = [
@@ -181,10 +181,7 @@ async function main(): Promise<void> {
     contracts: { token, verifier, auditor, underlying },
     auditorId: AUDITOR_ID,
     addrF: toHex32(sdkAddrF),
-    keyDerivation: {
-      scheme: "sk = SHA-512(SEP-0053 ed25519 signature over the message below) mod r",
-      message: keyDerivationMessage(PASSPHRASE, token),
-    },
+    keyDerivation: keyDerivationRecord(token),
     notes: [
       "Fresh deployment so the Sombra Archive can hold full history by construction: " +
         `start ingestion at ledger ${onChain.ledger}.`,

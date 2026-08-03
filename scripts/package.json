@@ -6,6 +6,7 @@
   "description": "Node-side substrate for the Sombra demo: deploy a fresh confidential token to testnet and create real on-chain history for it.",
   "scripts": {
     "deploy": "tsx deploy.ts",
+    "derive": "tsx derive.ts",
     "history": "tsx history.ts",
     "typecheck": "tsc --noEmit"
   },

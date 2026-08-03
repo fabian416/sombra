@@ -13,10 +13,7 @@ import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { createHash } from "node:crypto";
-
-import { Networks, Keypair } from "@stellar/stellar-sdk";
-import { frMod, fromBytesBE } from "@ctd/sdk";
+import { Networks } from "@stellar/stellar-sdk";
 
 export const NETWORK = "testnet";
 export const RPC_URL = "https://soroban-testnet.stellar.org";
@@ -108,52 +105,15 @@ export function sleep(ms: number): Promise<void> {
 // ---------------------------------------------------------------------------
 
 /**
- * The message whose signature seeds the confidential spending key. Folding in
- * the passphrase and the token contract id keeps a signature obtained for one
- * deployment from deriving keys for another, mirroring how `vk` is bound to
- * `addr_f` on-chain.
+ * Identifies the derivation an account was enrolled under, recorded per account
+ * in `.demo-keys.json`. `register` is single-use, so an account enrolled under
+ * one derivation can never be moved to another: the tag is what lets the
+ * scripts notice a stale account and mint a fresh one instead of failing at
+ * `register` with a confusing on-chain error.
+ *
+ * The derivation itself is in `derive.ts` — SDK.md §5.1 + §5.2, normative.
  */
-export function keyDerivationMessage(networkPassphrase: string, tokenContract: string): string {
-  return [
-    "Sombra — confidential key derivation v1",
-    "",
-    "Signing this message derives your confidential spending key.",
-    "",
-    `Network: ${networkPassphrase}`,
-    `Token contract: ${tokenContract}`,
-  ].join("\n");
-}
-
-const SEP53_PREFIX = new TextEncoder().encode("Stellar Signed Message:\n");
-
-/**
- * SEP-0053 message signature: ed25519 over `SHA-256(prefix ‖ message)`. This is
- * what a wallet's `signMessage` produces, so a browser holding the same Stellar
- * account reproduces these bytes without ever seeing the seed.
- */
-export function sep53Sign(kp: Keypair, message: string): Uint8Array {
-  const body = new TextEncoder().encode(message);
-  const payload = Buffer.concat([Buffer.from(SEP53_PREFIX), Buffer.from(body)]);
-  const digest = createHash("sha256").update(payload).digest();
-  return new Uint8Array(kp.sign(digest));
-}
-
-/**
- * Fold a message signature into a non-zero F_r scalar. Ed25519 signatures are
- * deterministic (RFC 8032), so this survives the loss of all local state — the
- * seed half of Sombra's recovery story. The event half is the Archive's job.
- */
-export function skFromSignature(signature: Uint8Array): bigint {
-  const digest = createHash("sha512").update(Buffer.from(signature)).digest();
-  const sk = frMod(fromBytesBE(new Uint8Array(digest)));
-  if (sk === 0n) throw new Error("degenerate key derivation (zero scalar)");
-  return sk;
-}
-
-/** Derive the confidential spending secret for a Stellar account. */
-export function deriveConfidentialSk(kp: Keypair, tokenContract: string): bigint {
-  return skFromSignature(sep53Sign(kp, keyDerivationMessage(PASSPHRASE, tokenContract)));
-}
+export const DERIVATION_ID = "SDK.md-5.1+5.2/hkdf-sha512/sep53-signer-root";
 
 // ---------------------------------------------------------------------------
 // Persisted outputs
@@ -164,6 +124,14 @@ export interface AccountRecord {
   secret: string;
   /** Confidential spending secret, hex — derived, stored so tools can skip the signature. */
   ctSkHex?: string;
+  /**
+   * Which derivation enrolled this account ({@link DERIVATION_ID}). An account
+   * whose tag does not match the current derivation cannot be reused: its
+   * `register` is spent under keys the current code no longer produces.
+   */
+  derivation?: string;
+  /** SDK.md §5's root form — `signer` here, `import` under an `sk` override. */
+  rootForm?: string;
 }
 
 export interface DemoKeys {
@@ -175,8 +143,12 @@ export interface DemoKeys {
 
 export interface TxRecord {
   hash: string;
+  ledger: number;
+  /** Contract method invoked. */
   op: string;
+  /** On-chain event the call emitted (the Archive's ingestion unit). */
   event: string;
+  /** Account the event is attributed to, per its topics. */
   account: string;
   note?: string;
 }
@@ -193,6 +165,8 @@ export interface Deployment {
   primaryAccountPublic: string | null;
   secondaryAccountPublic: string | null;
   txHashes: TxRecord[];
+  /** Ledger span covered by the scripted history, once it has been created. */
+  historyLedgers?: { from: number; to: number };
   contracts: {
     token: string;
     verifier: string;
@@ -202,11 +176,104 @@ export interface Deployment {
   auditorId: number;
   /** `addressToField(token)`, hex — the Poseidon2 parity anchor for the key set. */
   addrF: string;
-  keyDerivation: {
-    scheme: string;
-    message: string;
-  };
+  /**
+   * Exact parameters of the normative derivation (SDK.md §5.1 + §5.2), plus a
+   * shared test vector. Recorded because every client serving these accounts
+   * must reproduce it bit for bit — `register` is single-use, so a client that
+   * derives differently cannot be corrected after the fact.
+   */
+  keyDerivation: KeyDerivationRecord;
+  /**
+   * Accounts registered under a superseded derivation. Their events are still
+   * on-chain and the Archive still ingests them; they are recorded so a reader
+   * finding extra registered accounts on this contract knows why they exist and
+   * that nothing points at them.
+   */
+  supersededAccounts?: { public: string; scheme: string; reason: string }[];
   notes: string[];
+}
+
+export interface KeyDerivationRecord {
+  /** Normative source, section-precise. */
+  spec: string;
+  /** The derivation in one line. */
+  scheme: string;
+  /** §5.2 root: how the HKDF input keying material is obtained. */
+  root: {
+    form: string;
+    /** The §5.2 message template, with `{contract}` / `{account}` placeholders. */
+    messageTemplate: string;
+    messageLength: number;
+    sep53Prefix: string;
+    digest: string;
+    signature: string;
+  };
+  /** §5.1 HKDF parameters. */
+  hkdf: {
+    hash: string;
+    ikm: string;
+    salt: string;
+    info: string;
+    outputBytes: number;
+  };
+  /** §5.1's `RS` — the §4.7 rejection procedure. */
+  rejection: string;
+  /** DESIGN.md §4, the hierarchy below `sk`. */
+  belowSk: string;
+  /**
+   * A published input both implementations run, so parity is demonstrated
+   * rather than asserted. The seed is a constant, not a funded account.
+   */
+  testVector: {
+    note: string;
+    seedHex: string;
+    contract: string;
+    account: string;
+    message: string;
+    sep53DigestHex: string;
+    rootSignatureHex: string;
+    addrF: string;
+    acctF: string;
+    rejectionCounter: number;
+    sk: string;
+    vk: string;
+    Y: [string, string];
+    PVK: [string, string];
+    verifiedBy: string[];
+  };
+  /**
+   * Per-account derivation outputs for the accounts this history actually uses.
+   *
+   * Only the values that are already public on-chain: `Y` and `PVK` are what
+   * `register` published, so publishing them here discloses nothing. `sk` and
+   * `vk` are secret — `vk` decrypts both channels — and stay in the gitignored
+   * `.demo-keys.json`, where a client that wants a full byte-parity test can
+   * read them locally.
+   *
+   * This is the stronger of the two vectors: it ties the derivation to the
+   * accounts that are really registered, so an implementation that reproduces
+   * `Y` from a signature has proven it can enrol *this* history's accounts,
+   * not merely that it agrees on a synthetic input.
+   */
+  accountVectors?: AccountVector[];
+}
+
+export interface AccountVector {
+  label: string;
+  account: string;
+  /** `address_to_field(account)` — §5.1's `acct_f`. */
+  acctF: string;
+  /**
+   * The rejection counter that produced this account's `sk`. Non-zero values
+   * are the interesting ones: a client that ignores `j` derives a different
+   * `sk` and cannot recover the account at all.
+   */
+  rejectionCounter: number;
+  rootForm: string;
+  /** `Y = sk·H`, as published on-chain by `register`. */
+  Y: [string, string];
+  /** `PVK = vk·H`, as published on-chain by `register`. */
+  PVK: [string, string];
 }
 
 export function loadDeployment(): Deployment {

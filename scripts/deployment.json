@@ -5,9 +5,114 @@
   "contractId": "CC2Z2B4X4IIFPEHTAAXSZMXVOFUFLDFQ2HVOOQUY3UTFNNKKZPEK4ZAC",
   "deployLedger": 3949779,
   "deployerPublic": "GDZIIS3BQKCG4O7UNMMRR47CGTUEOV73XAR3OCFJVYTH2URQROMCR5OR",
-  "primaryAccountPublic": null,
-  "secondaryAccountPublic": null,
-  "txHashes": [],
+  "primaryAccountPublic": "GA4Q5CFRBM26X7NQGYFT5PITCMNUOD7R63LSID2IEFLNMKQKY5EIOAW7",
+  "secondaryAccountPublic": "GB7J4RKIHOIMA6KRQ32WJPGS6AWCOYETZM4IAIREVT5BO6IZICNQ73XI",
+  "txHashes": [
+    {
+      "hash": "bb2577ae85e1816f622fa2547de9ab7848a433e71d5f77368120a6c3dd268fb4",
+      "ledger": 3953983,
+      "op": "register",
+      "event": "register",
+      "account": "GA4Q5CFRBM26X7NQGYFT5PITCMNUOD7R63LSID2IEFLNMKQKY5EIOAW7",
+      "note": "primary account created"
+    },
+    {
+      "hash": "41906894b5c26cf0349ce4a685dbd66c3e6e4ecda6450207a6479ba36bd93799",
+      "ledger": 3953984,
+      "op": "register",
+      "event": "register",
+      "account": "GB7J4RKIHOIMA6KRQ32WJPGS6AWCOYETZM4IAIREVT5BO6IZICNQ73XI",
+      "note": "secondary account created"
+    },
+    {
+      "hash": "9bdf939caff24b09d4203e8c90fd87a000930323d8229510f1e9b5fffcd3af9e",
+      "ledger": 3953985,
+      "op": "deposit",
+      "event": "deposit",
+      "account": "GA4Q5CFRBM26X7NQGYFT5PITCMNUOD7R63LSID2IEFLNMKQKY5EIOAW7",
+      "note": "primary +1000 (zero blinding)"
+    },
+    {
+      "hash": "db1acc6dc83641952094b20fcb318d847e744359e93491426628bd5dc8706a88",
+      "ledger": 3953986,
+      "op": "deposit",
+      "event": "deposit",
+      "account": "GB7J4RKIHOIMA6KRQ32WJPGS6AWCOYETZM4IAIREVT5BO6IZICNQ73XI",
+      "note": "secondary +3000 (zero blinding)"
+    },
+    {
+      "hash": "858b34f14c38f84d49b6120359d59a9f00cd6ec4abcf72831c80052db024c62b",
+      "ledger": 3953987,
+      "op": "merge",
+      "event": "merge",
+      "account": "GB7J4RKIHOIMA6KRQ32WJPGS6AWCOYETZM4IAIREVT5BO6IZICNQ73XI",
+      "note": "receiving → spendable"
+    },
+    {
+      "hash": "64acd4bb9db4206f2450024281b44c9d4fcf5c86a5ba35ce0cda76ed80036fb4",
+      "ledger": 3953990,
+      "op": "confidential_transfer",
+      "event": "transfer",
+      "account": "GA4Q5CFRBM26X7NQGYFT5PITCMNUOD7R63LSID2IEFLNMKQKY5EIOAW7",
+      "note": "700 secondary → primary (checkpoint for secondary, incoming for primary)"
+    },
+    {
+      "hash": "ab32ddcc9efee9c486c72d245ea518bb24d76cd6a820d0db65925daf9c594cf5",
+      "ledger": 3953995,
+      "op": "confidential_transfer",
+      "event": "transfer",
+      "account": "GA4Q5CFRBM26X7NQGYFT5PITCMNUOD7R63LSID2IEFLNMKQKY5EIOAW7",
+      "note": "500 secondary → primary (checkpoint for secondary, incoming for primary)"
+    },
+    {
+      "hash": "4ec8d1e786f519006918aaca0388c21454d415d1b233c9acc802c73f5234f195",
+      "ledger": 3953998,
+      "op": "confidential_transfer",
+      "event": "transfer",
+      "account": "GA4Q5CFRBM26X7NQGYFT5PITCMNUOD7R63LSID2IEFLNMKQKY5EIOAW7",
+      "note": "300 secondary → primary (checkpoint for secondary, incoming for primary)"
+    },
+    {
+      "hash": "0a851361a888c447af7534a532c2ee395b32ad13f8cb3c667c9079574b9d4f3c",
+      "ledger": 3954000,
+      "op": "merge",
+      "event": "merge",
+      "account": "GA4Q5CFRBM26X7NQGYFT5PITCMNUOD7R63LSID2IEFLNMKQKY5EIOAW7",
+      "note": "T_0 anchor: deposit + 3 transfers → spendable"
+    },
+    {
+      "hash": "a338554ff3de364fca2ae8ad8e9b521119e71575f9a0cf2ef91304cbe8f1ba50",
+      "ledger": 3954002,
+      "op": "confidential_transfer",
+      "event": "transfer",
+      "account": "GA4Q5CFRBM26X7NQGYFT5PITCMNUOD7R63LSID2IEFLNMKQKY5EIOAW7",
+      "note": "250 primary → secondary — first checkpoint after the merge"
+    },
+    {
+      "hash": "e538cc0ae483474628c1dbd82f07deaf426ae712d9dc6f0142df1fe59c121487",
+      "ledger": 3954004,
+      "op": "withdraw",
+      "event": "withdraw",
+      "account": "GA4Q5CFRBM26X7NQGYFT5PITCMNUOD7R63LSID2IEFLNMKQKY5EIOAW7",
+      "note": "400 → public; latest checkpoint (b_tilde, sigma)"
+    },
+    {
+      "hash": "584f208c450d691931a23a48b69cab7be6f2bb65461e0efa08418d507d01df60",
+      "ledger": 3954007,
+      "op": "confidential_transfer",
+      "event": "transfer",
+      "account": "GA4Q5CFRBM26X7NQGYFT5PITCMNUOD7R63LSID2IEFLNMKQKY5EIOAW7",
+      "note": "600 secondary → primary, after primary's latest checkpoint"
+    },
+    {
+      "hash": "de4e98a3a8e13450d6e5bc8b434b102ff9a1902379f9b741a52cbe6516d0c71d",
+      "ledger": 3954008,
+      "op": "merge",
+      "event": "merge",
+      "account": "GA4Q5CFRBM26X7NQGYFT5PITCMNUOD7R63LSID2IEFLNMKQKY5EIOAW7",
+      "note": "merge AFTER the checkpoint — T_0 must not advance to here"
+    }
+  ],
   "contracts": {
     "token": "CC2Z2B4X4IIFPEHTAAXSZMXVOFUFLDFQ2HVOOQUY3UTFNNKKZPEK4ZAC",
     "verifier": "CARNKFCAY5H6XEJ5CRTJWYLFGPRCWGGU5XLKJGLSK6ENDU7CG7AIDFYT",
@@ -17,11 +122,105 @@
   "auditorId": 0,
   "addrF": "0x0ff3348a58b155116391bc73d41fa20c31b61d617fe618abb413287b0891e691",
   "keyDerivation": {
-    "scheme": "sk = SHA-512(SEP-0053 ed25519 signature over the message below) mod r",
-    "message": "Sombra — confidential key derivation v1\n\nSigning this message derives your confidential spending key.\n\nNetwork: Test SDF Network ; September 2015\nToken contract: CC2Z2B4X4IIFPEHTAAXSZMXVOFUFLDFQ2HVOOQUY3UTFNNKKZPEK4ZAC"
+    "accountVectors": [
+      {
+        "label": "primary",
+        "account": "GA4Q5CFRBM26X7NQGYFT5PITCMNUOD7R63LSID2IEFLNMKQKY5EIOAW7",
+        "acctF": "0x0732453f4eab8566d9cd2c56167f33796f224db4714eb20966caa9a2ba776add",
+        "rejectionCounter": 0,
+        "rootForm": "signer",
+        "Y": [
+          "0x0c6078ae5453eef1c0b1ea813b07ed5727b16a0c82bb6a3392403dad47a885fa",
+          "0x2b670a1474755599bc4e17e428b503ca3757c2a4cc397e4cc5ece0cc98eff202"
+        ],
+        "PVK": [
+          "0x032875392860ec30c9ea7a0e39aba7ecae39580343e44c285711be0614e5e747",
+          "0x0bd2747239a31a5f20929706d55fbfc32be82d990f6ddf0b6b27a10483b6f271"
+        ]
+      },
+      {
+        "label": "secondary",
+        "account": "GB7J4RKIHOIMA6KRQ32WJPGS6AWCOYETZM4IAIREVT5BO6IZICNQ73XI",
+        "acctF": "0x03c8d3c556ef45599fdfd6317e60d85766cca3e1a5ef8a9b09d81cf6dfed5abf",
+        "rejectionCounter": 1,
+        "rootForm": "signer",
+        "Y": [
+          "0x273807b76c2a021a12a4eab74fa73d1e1dc42c974fe99d9882aa47a411e42264",
+          "0x0088d4497b59b2db2cc476da6b9675a7ad5973cf87adf89ca2abdc12bd69bdf8"
+        ],
+        "PVK": [
+          "0x2ce8de4cc5e6b7e8ac4b0429a2cf9aa106626146a0765bb6f8f3cac4f2994c9f",
+          "0x2b894a98c90ad4abfc415f1fff6139671e586f917b8b8cab7bfa3d297a8673c4"
+        ]
+      }
+    ],
+    "spec": "OpenZeppelin Confidential Token SDK.md §5.1 (derivation) + §5.2 (signer root); hierarchy below sk is DESIGN.md §4",
+    "scheme": "sk = RS(HKDF-SHA-512(IKM = root, salt = \"openzeppelin/confidential-token/v1/sk\", info = be32(addr_f) ‖ be32(acct_f) ‖ le4(j)))",
+    "root": {
+      "form": "signer (§5.2) — a SEP-0053 ed25519 signature, used as the 64-byte IKM verbatim",
+      "messageTemplate": "openzeppelin/confidential-token/v1/sk\\n{contract}\\n{account}",
+      "messageLength": 151,
+      "sep53Prefix": "Stellar Signed Message:\n",
+      "digest": "SHA-256(prefix ‖ msg) — the bytes the ed25519 key signs",
+      "signature": "64-byte RFC 8032 R ‖ S; verified against the expected signer before use (§5.2 MUST)"
+    },
+    "hkdf": {
+      "hash": "SHA-512",
+      "ikm": "the root bytes, verbatim — not hashed, not truncated",
+      "salt": "openzeppelin/confidential-token/v1/sk",
+      "info": "be32(addr_f) ‖ be32(acct_f) ‖ le4(j)  — 68 bytes",
+      "outputBytes": 32
+    },
+    "rejection": "§4.7 applied to the 32-byte OKM: clear the top 2 bits, accept iff in [1, r), else j += 1 and re-derive. Also re-rolled if vk == 0 (registration constraint R5).",
+    "belowSk": "vk = Poseidon2(δ_vk=2, [sk, addr_f]);  Y = sk·H;  PVK = vk·H  (DESIGN.md §4)",
+    "testVector": {
+      "note": "Published input for cross-implementation parity. The seed is the constant 32×0x01, not a funded account; the contract is the real deployment because addr_f is an input to both the §5.2 message and the §5.1 info, so a faked one would not exercise the binding. Reproduce with: npm run derive -- --parity",
+      "seedHex": "0101010101010101010101010101010101010101010101010101010101010101",
+      "contract": "CC2Z2B4X4IIFPEHTAAXSZMXVOFUFLDFQ2HVOOQUY3UTFNNKKZPEK4ZAC",
+      "account": "GCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR",
+      "message": "openzeppelin/confidential-token/v1/sk\nCC2Z2B4X4IIFPEHTAAXSZMXVOFUFLDFQ2HVOOQUY3UTFNNKKZPEK4ZAC\nGCFIRY65OQE7DFP5KLNS2PF2LVZMUZYJX4OZIEQ36N2IQANUB5XVYOJR",
+      "sep53DigestHex": "f6dac3e4d0448099d8e11694679e02d4db54114ff8462d5bdbaf415b71a18db2",
+      "rootSignatureHex": "9585edc706772e0d8639cb5ffe9dd19cf231b0ef65a209ffc4ab2bee5a7308da602f632d7ff11a9005aed2ecb2b3c7e92ea9c3f14f78ff924b456244d5f22e06",
+      "addrF": "0x0ff3348a58b155116391bc73d41fa20c31b61d617fe618abb413287b0891e691",
+      "acctF": "0x0a074e3a8fa874e23f1c9c76872c6bc259f8bba2160b092eacfc4774db477392",
+      "rejectionCounter": 0,
+      "sk": "0x15e663df422ef437e3e5cd3b0a3dc7f3cd940403065f0834a7f2947e0047bdd4",
+      "vk": "0x1425f56276524c317bbf4ee3e91c8959b1c17a564b64f10d18e7023c96ac5ed4",
+      "Y": [
+        "0x0ec31d28ee0dea334c60be339719b8991e7993df3e32c2283ad47802ee640d08",
+        "0x1de872a4369d16f73792e8b9910dab0bedcf703328d793f4c7aa3705b67abd84"
+      ],
+      "PVK": [
+        "0x18626c30a823dea65c90774c7833c65ba7cf3d0914ce305925dfd48747f16276",
+        "0x0ef8d7965bac041daaa68918f083b380cda0367e0abd9dedbcdc3a57e2e038a8"
+      ],
+      "verifiedBy": [
+        "scripts/derive.ts — Node hkdfSync + @ctd/sdk Poseidon2/Grumpkin",
+        "kit/src/keys.ts — @noble/hashes hkdf + @zkpassport/poseidon2 + @noble/curves"
+      ]
+    }
   },
   "notes": [
     "Fresh deployment so the Sombra Archive can hold full history by construction: start ingestion at ledger 3949779.",
-    "History has not been created yet — run `npm run history`."
+    "Primary history: register → deposit → 3 incoming transfers → merge → outgoing transfer → withdraw → late incoming transfer → merge. Final spendable = 2450 stroops, receiving = 0.",
+    "The final merge lands AFTER the primary's latest checkpoint (the withdraw), which is the case INDEXER.md:21 warns about: recovery must resolve T_0 as the last merge at or BEFORE that checkpoint. A wallet that takes the last merge overall reconstructs spendable = 1850 instead of 2450, and its re-commitment against the on-chain point fails. This history exists to make that bug loud.",
+    "Every proof was generated with the keccak transcript and accepted by the on-chain UltraHonk verifier.",
+    "Both accounts were enrolled under the normative SDK.md §5.1 + §5.2 derivation, and the on-chain spending_public_key and public viewing key were read back and compared against the derived Y and PVK immediately after each register. A browser client implementing §5 therefore reaches the same keys from a SEP-0053 signature alone — which is what makes this history recoverable rather than merely replayable. See keyDerivation.testVector for the shared parity vector."
+  ],
+  "historyLedgers": {
+    "from": 3953983,
+    "to": 3954008
+  },
+  "supersededAccounts": [
+    {
+      "public": "GCKBD5H2T6TJ7H3SYBSFWE4WTPETTTPOUVV7VZTDZ2YN2ZN6WAK5JECM",
+      "scheme": "sk = SHA-512(SEP-0053 signature) mod r (the CT demo app's shortcut)",
+      "reason": "register is single-use, so this account is permanently bound to keys the normative SDK.md §5 derivation does not produce. Replaced rather than reused; its events remain on-chain."
+    },
+    {
+      "public": "GCEZSOLPYY4CODT4Y4UV6JYBTCNCAU4ZS4J4ULDBZDR77DRN5S46BUPH",
+      "scheme": "sk = SHA-512(SEP-0053 signature) mod r (the CT demo app's shortcut)",
+      "reason": "register is single-use, so this account is permanently bound to keys the normative SDK.md §5 derivation does not produce. Replaced rather than reused; its events remain on-chain."
+    }
   ]
 }
