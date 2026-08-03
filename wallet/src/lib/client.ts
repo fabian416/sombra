@@ -78,6 +78,12 @@ export type RecoveryPhase =
   | "verify"
   | "restored";
 
+/** A contiguous ledger range the Archive actually holds. */
+export interface LedgerRange {
+  from: number;
+  to: number;
+}
+
 export interface RecoveryProgress {
   phase: RecoveryPhase;
   /** Sentence shown on the stage. Written for the person, not the log. */
@@ -88,7 +94,21 @@ export interface RecoveryProgress {
   fraction: number;
   eventsReplayed?: number;
   eventsTotal?: number;
+  /**
+   * The Archive's C3 completeness signal, carried through to the UI. False
+   * means the served range has holes — a different failure from a range that
+   * was served whole and then failed verification, and the wallet must not
+   * collapse the two. (SDK.md §12.3)
+   */
+  complete?: boolean;
+  archiveCoverage?: LedgerRange[];
 }
+
+export type RecoveryFailure =
+  /** The Archive does not hold every ledger in the requested range. */
+  | "incomplete"
+  /** The range was served whole, but the rebuilt openings do not match chain. */
+  | "verification";
 
 export interface RecoveryResult {
   address: string;
@@ -96,9 +116,17 @@ export interface RecoveryResult {
   fromLedger: number;
   throughLedger: number;
   restored: ConfidentialBalance;
-  /** Events that predate the 7-day Soroban RPC window — Archive-only. */
+  /** Events that predate the Soroban RPC retention floor — Archive-only. */
   beyondRpcWindow: number;
   verifiedAgainstChain: boolean;
+  /** False when the Archive reported gaps. Never present a gapped restore as verified. */
+  complete: boolean;
+  /** What the Archive actually served, so the UI can name the missing ledgers. */
+  archiveCoverage: LedgerRange[];
+  /** Set when the recovery could not be trusted, naming which of the two reasons. */
+  failure?: RecoveryFailure;
+  /** Ledger ranges the Archive was asked for and could not supply. */
+  missingRanges?: LedgerRange[];
 }
 
 export interface SwapQuote {
@@ -136,8 +164,14 @@ export interface SombraClient {
   /** SPP pool back out to a public address. */
   unshield(amount: Stroops, recipient?: string): Promise<TxReceipt>;
 
-  recoverFromSeed(
-    seed: string,
+  /**
+   * Rebuild the account's openings from the enrolled signer.
+   *
+   * Not "from a seed phrase": SDK.md §5 derives the root from a SEP-0053
+   * ed25519 signature over a message binding the contract and account, so the
+   * wallet asks the signer, never the user's words.
+   */
+  recoverFromSigner(
     archiveUrl: string,
     onProgress: (p: RecoveryProgress) => void,
   ): Promise<RecoveryResult>;
@@ -157,4 +191,14 @@ export interface SombraClient {
   hasLocalState(): boolean;
   /** Demo control: drop local openings to simulate a lost device. */
   wipeLocalState(): void;
+
+  /**
+   * Present only on implementations that can fake a condition for the stage.
+   * The live client omits it, so a screen must always guard on its presence.
+   */
+  demo?: {
+    /** Force the next recovery to report an Archive gap. */
+    simulateArchiveGap(on: boolean): void;
+    isSimulatingArchiveGap(): boolean;
+  };
 }

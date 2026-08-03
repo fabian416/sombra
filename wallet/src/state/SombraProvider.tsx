@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -14,14 +15,32 @@ import type {
   SombraClient,
   WalletIdentity,
 } from "../lib/client";
-import { MockSombraClient } from "../lib/mockClient";
+import { DEMO_ADDRESS, MockSombraClient } from "../lib/mockClient";
 import { restoreSession } from "../lib/freighter";
 
 export const ARCHIVE_URL: string =
-  import.meta.env.VITE_ARCHIVE_URL ?? "http://localhost:3001";
+  import.meta.env.VITE_ARCHIVE_URL ?? "http://localhost:8787";
+
+export type ClientMode = "mock" | "live";
 
 /** Only "mock" ships today; "live" lands when sombra-kit is wired. */
-export const CLIENT_MODE: string = import.meta.env.VITE_SOMBRA_CLIENT ?? "mock";
+export const CLIENT_MODE: ClientMode =
+  import.meta.env.VITE_SOMBRA_CLIENT === "live" ? "live" : "mock";
+
+/**
+ * The one place an implementation is chosen. Selecting "live" before sombra-kit
+ * exists fails loudly here rather than silently serving mock numbers that look
+ * like chain data — the failure mode that matters for a wallet.
+ */
+function createClient(mode: ClientMode): SombraClient {
+  if (mode === "live") {
+    throw new Error(
+      "VITE_SOMBRA_CLIENT=live, but the live client is not wired yet. " +
+        "Set VITE_SOMBRA_CLIENT=mock (or unset it) to run the demo.",
+    );
+  }
+  return new MockSombraClient();
+}
 
 interface Balances {
   public: PublicBalance | null;
@@ -35,6 +54,9 @@ interface SombraContextValue {
   connecting: boolean;
   connectError: string | null;
   connect: () => Promise<void>;
+  /** Open the wallet on demo data, for anyone without Freighter installed. */
+  enterPreview: () => void;
+  preview: boolean;
   disconnect: () => void;
   balances: Balances;
   loadingBalances: boolean;
@@ -49,10 +71,11 @@ const SombraContext = createContext<SombraContextValue | null>(null);
 const EMPTY: Balances = { public: null, confidential: null, shielded: null };
 
 export function SombraProvider({ children }: { children: ReactNode }) {
-  const client = useMemo<SombraClient>(() => new MockSombraClient(), []);
+  const client = useMemo<SombraClient>(() => createClient(CLIENT_MODE), []);
   const [identity, setIdentity] = useState<WalletIdentity | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [connectError, setConnectError] = useState<string | null>(null);
+  const [preview, setPreview] = useState(false);
   const [balances, setBalances] = useState<Balances>(EMPTY);
   const [loadingBalances, setLoadingBalances] = useState(false);
   const [hasLocalState, setHasLocalState] = useState(() =>
@@ -90,8 +113,20 @@ export function SombraProvider({ children }: { children: ReactNode }) {
     }
   }, [client, refresh]);
 
+  const enterPreview = useCallback(() => {
+    setPreview(true);
+    setConnectError(null);
+    setIdentity({
+      address: DEMO_ADDRESS,
+      network: "TESTNET",
+      networkPassphrase: "Test SDF Network ; September 2015",
+    });
+    void refresh();
+  }, [refresh]);
+
   const disconnect = useCallback(() => {
     setIdentity(null);
+    setPreview(false);
     setBalances(EMPTY);
   }, []);
 
@@ -102,12 +137,16 @@ export function SombraProvider({ children }: { children: ReactNode }) {
   }, [client, refresh]);
 
   // Pick the session back up silently if Freighter already trusts this origin,
-  // so a reload mid-demo doesn't cost a click.
+  // so a reload mid-demo doesn't cost a click. Runs once, and never overrides a
+  // session the person has already chosen.
+  const restored = useRef(false);
   useEffect(() => {
+    if (restored.current) return;
+    restored.current = true;
     let cancelled = false;
     void restoreSession().then((session) => {
       if (cancelled || !session) return;
-      setIdentity(session);
+      setIdentity((current) => (current ? current : session));
       void refresh();
     });
     return () => {
@@ -122,6 +161,8 @@ export function SombraProvider({ children }: { children: ReactNode }) {
       connecting,
       connectError,
       connect,
+      enterPreview,
+      preview,
       disconnect,
       balances,
       loadingBalances,
@@ -135,6 +176,8 @@ export function SombraProvider({ children }: { children: ReactNode }) {
       connecting,
       connectError,
       connect,
+      enterPreview,
+      preview,
       disconnect,
       balances,
       loadingBalances,

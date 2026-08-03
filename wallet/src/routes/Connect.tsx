@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Eclipse } from "../components/Eclipse";
+import { DecryptText } from "../components/DecryptText";
 import { Button, Eyebrow } from "../components/ui";
 import { useSombra } from "../state/SombraProvider";
 import { detectFreighter } from "../lib/freighter";
@@ -12,7 +13,7 @@ const LEDGER = [
 ];
 
 export function Connect() {
-  const { connect, connecting, connectError } = useSombra();
+  const { connect, connecting, connectError, enterPreview } = useSombra();
   const [installed, setInstalled] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -26,7 +27,7 @@ export function Connect() {
       <header className="flex items-center justify-between gap-6">
         <Wordmark />
         <div className="flex items-center gap-2">
-          <span className="eyebrow border border-limb px-2 py-1 text-ash">
+          <span className="eyebrow rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-ash backdrop-blur">
             Testnet
           </span>
         </div>
@@ -34,27 +35,33 @@ export function Connect() {
 
       <div className="grid flex-1 items-center gap-14 py-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8 lg:py-8">
         <div className="max-w-[36rem] animate-rise">
-          <Eyebrow className="text-horizon">
+          <Eyebrow className="text-cyan">
             Confidential Token &nbsp;·&nbsp; Private payment pools
           </Eyebrow>
 
+          {/* The headline arrives as ciphertext and decrypts — the second line
+              resolving last, so "Never lost." is the word that lands. */}
           <h1 className="mt-5 text-[clamp(2.6rem,6.4vw,4.35rem)]">
-            <span className="block text-corona">Hidden on chain.</span>
-            <span
-              className="block"
-              style={{
-                color: "#F2A03D",
-                textShadow: "0 0 44px rgba(242,160,61,0.28)",
-              }}
-            >
-              Never lost.
-            </span>
+            <DecryptText
+              as="span"
+              text="Hidden on chain."
+              delayMs={180}
+              perCharMs={38}
+              className="block text-corona"
+            />
+            <DecryptText
+              as="span"
+              text="Never lost."
+              delayMs={900}
+              perCharMs={46}
+              className="glow-text block text-cyan"
+            />
           </h1>
 
           <p className="mt-6 max-w-[33rem] text-[15.5px] leading-[1.7] text-corona-dim">
             A confidential balance on Stellar is a commitment, not a number. To
-            spend it your wallet has to replay your account's whole history from
-            seed — and Stellar RPC only keeps seven days of that history.
+            spend it your wallet has to replay your account's whole event
+            history — and Stellar RPC only keeps seven days of that history.
           </p>
           <p className="mt-3.5 max-w-[33rem] text-[15.5px] leading-[1.7] text-ash">
             Lose your device after day eight and the funds are still yours on
@@ -81,6 +88,13 @@ export function Connect() {
                 Install Freighter
               </a>
             )}
+            <button
+              type="button"
+              onClick={enterPreview}
+              className="eyebrow text-ash underline decoration-limb-bright underline-offset-4 transition-colors hover:text-corona"
+            >
+              Explore with demo data
+            </button>
           </div>
 
           {connectError && (
@@ -92,9 +106,12 @@ export function Connect() {
             </p>
           )}
 
-          <dl className="mt-12 grid max-w-[34rem] grid-cols-1 gap-px border border-limb bg-limb sm:grid-cols-3">
+          <dl className="mt-12 grid max-w-[34rem] grid-cols-1 gap-3 sm:grid-cols-3">
             {LEDGER.map((item) => (
-              <div key={item.figure} className="bg-umbra px-4 py-3.5">
+              <div
+                key={item.figure}
+                className="rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 backdrop-blur"
+              >
                 <dt className="numeral text-[15px] text-corona">
                   {item.figure}
                 </dt>
@@ -128,9 +145,8 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
         className="display leading-none text-corona"
         style={{
           fontSize: compact ? 15 : 17,
-          fontVariationSettings: '"wdth" 125',
-          fontWeight: 700,
-          letterSpacing: "0.22em",
+          fontWeight: 600,
+          letterSpacing: "0.26em",
         }}
       >
         SOMBRA
@@ -162,12 +178,12 @@ function EclipsePlate() {
           className="absolute inset-0 h-full w-full"
           aria-hidden
         >
-          <g stroke="#3A2D59" strokeWidth="0.3" fill="none">
+          <g stroke="rgba(56,226,255,0.28)" strokeWidth="0.3" fill="none">
             <path d="M 57 43 L 70 22 L 100 22" />
             <path d="M 30 60 L 15 79 L 0 79" />
           </g>
-          <circle cx="57" cy="43" r="0.8" fill="#8B82A6" />
-          <circle cx="30" cy="60" r="0.8" fill="#EDF3FF" />
+          <circle cx="57" cy="43" r="0.8" fill="#8BA0B8" />
+          <circle cx="30" cy="60" r="0.8" fill="#38E2FF" />
         </svg>
 
         <div className="absolute right-0 top-0 w-[9.5rem] text-right">

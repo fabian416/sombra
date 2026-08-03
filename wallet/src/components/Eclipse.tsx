@@ -6,24 +6,31 @@ interface EclipseProps {
   intensity?: number;
   /** Ring of arc segments around the limb, for stepped progress. */
   segments?: { total: number; complete: number };
-  /** "mark" drops the streamers — below ~48px they only muddy the shape. */
+  /**
+   * "mark" is the logo: a few bold, uneven streamers so the rotation reads at
+   * 24–36px. "full" is the plate, with the fine ray field.
+   */
   variant?: "full" | "mark";
+  /** Seconds per corona revolution. Defaults: 9 for the mark, 48 for the plate. */
+  spinSeconds?: number;
   className?: string;
 }
 
 /**
  * The Sombra mark and the app's one piece of theatre.
  *
- * A total eclipse, drawn honestly: the disc is always black — that is the chain's
- * view, and it never brightens. What returns is the corona. Recovery does not
- * reveal your balance to the world; it gives you back the only light that was
- * ever yours to see.
+ * A total eclipse, drawn honestly: the disc is always black — that is what the
+ * ledger holds, and it never brightens. What returns is the corona.
+ *
+ * The disc never moves. The light rotates around it and cannot get in: the
+ * private thing stays fixed while everything else turns.
  */
 export function Eclipse({
   size = 320,
   intensity = 1,
   segments,
   variant = "full",
+  spinSeconds,
   className,
 }: EclipseProps) {
   const uid = useId().replace(/:/g, "");
@@ -34,18 +41,35 @@ export function Eclipse({
   const glow = size * 0.5;
   const limb = (disc / glow) * 100;
 
-  const rayCount = 40;
-  const rays = Array.from({ length: rayCount }, (_, i) => {
-    // Deterministic pseudo-random so the ray field is stable across renders.
-    const n = Math.sin(i * 12.9898) * 43758.5453;
-    const r = n - Math.floor(n);
-    return {
-      angle: (i / rayCount) * 360 + r * 5,
-      length: disc * (0.22 + r * 0.95),
-      width: 0.5 + r * 1.1,
-      opacity: 0.1 + r * 0.3,
-    };
-  });
+  const isMark = variant === "mark";
+  const spin = spinSeconds ?? (isMark ? 9 : 48);
+
+  /**
+   * The mark needs asymmetry to read as spinning at logo size, so it gets a
+   * handful of long uneven streamers instead of the plate's even field.
+   */
+  const rays = isMark
+    ? [
+        { angle: 8, length: disc * 1.5, width: 1.6, opacity: 0.95 },
+        { angle: 52, length: disc * 0.55, width: 1.1, opacity: 0.5 },
+        { angle: 104, length: disc * 1.1, width: 1.35, opacity: 0.75 },
+        { angle: 143, length: disc * 0.42, width: 0.95, opacity: 0.42 },
+        { angle: 199, length: disc * 1.72, width: 1.7, opacity: 1 },
+        { angle: 248, length: disc * 0.62, width: 1.05, opacity: 0.48 },
+        { angle: 296, length: disc * 1.28, width: 1.45, opacity: 0.82 },
+        { angle: 334, length: disc * 0.5, width: 1, opacity: 0.45 },
+      ]
+    : Array.from({ length: 40 }, (_, i) => {
+        // Deterministic pseudo-random so the ray field is stable across renders.
+        const n = Math.sin(i * 12.9898) * 43758.5453;
+        const r = n - Math.floor(n);
+        return {
+          angle: (i / 40) * 360 + r * 5,
+          length: disc * (0.22 + r * 0.95),
+          width: 0.5 + r * 1.1,
+          opacity: 0.1 + r * 0.3,
+        };
+      });
 
   const segRadius = disc + size * 0.055;
   const segCirc = 2 * Math.PI * segRadius;
@@ -67,28 +91,28 @@ export function Eclipse({
         {/* Tight at the limb, gone well before the edge — a corona, not a haze.
             Offsets are fractions of `glow`, so the limb sits at `limb`%. */}
         <radialGradient id={`corona-${uid}`}>
-          <stop offset={`${limb}%`} stopColor="#F4F8FF" stopOpacity="0" />
+          <stop offset={`${limb}%`} stopColor="#EAFDFF" stopOpacity="0" />
           <stop
             offset={`${limb + 0.6}%`}
-            stopColor="#EDF3FF"
+            stopColor="#38E2FF"
             stopOpacity={0.62 * t}
           />
           <stop
             offset={`${limb + 5}%`}
-            stopColor="#D2E0F5"
+            stopColor="#38E2FF"
             stopOpacity={0.2 * t}
           />
           <stop
             offset={`${limb + 15}%`}
-            stopColor="#A9B8DA"
+            stopColor="#22B8D8"
             stopOpacity={0.07 * t}
           />
           <stop
             offset={`${limb + 30}%`}
-            stopColor="#9B7CE8"
+            stopColor="#38E2FF"
             stopOpacity={0.025 * t}
           />
-          <stop offset="100%" stopColor="#9B7CE8" stopOpacity="0" />
+          <stop offset="100%" stopColor="#38E2FF" stopOpacity="0" />
         </radialGradient>
 
         <filter id={`soft-${uid}`} x="-60%" y="-60%" width="220%" height="220%">
@@ -98,14 +122,14 @@ export function Eclipse({
 
       <circle cx={c} cy={c} r={glow} fill={`url(#corona-${uid})`} />
 
-      {/* Streamers. They drift because the corona does. */}
-      {variant === "full" && (
+      {/* The streamers turn; the disc below them does not. */}
+      {(
         <g
-          filter={`url(#soft-${uid})`}
+          filter={isMark ? undefined : `url(#soft-${uid})`}
           opacity={t}
           style={{
             transformOrigin: "center",
-            animation: "corona-drift 300s linear infinite",
+            animation: `corona-drift ${spin}s linear infinite`,
           }}
         >
           {rays.map((ray, i) => (
@@ -116,7 +140,7 @@ export function Eclipse({
               width={ray.width}
               height={ray.length}
               rx={ray.width / 2}
-              fill="#DCE7F5"
+              fill="#9BEEFF"
               opacity={ray.opacity}
               transform={`rotate(${ray.angle} ${c} ${c})`}
             />
@@ -150,7 +174,7 @@ export function Eclipse({
                 cy={c}
                 r={segRadius}
                 fill="none"
-                stroke={done ? "#F2A03D" : "#2E2447"}
+                stroke={done ? "#38E2FF" : "rgba(255,255,255,0.14)"}
                 strokeWidth={size * 0.008}
                 strokeLinecap="round"
                 strokeDasharray={`${dash} ${segCirc - dash}`}
@@ -163,14 +187,14 @@ export function Eclipse({
       )}
 
       {/* The chain's view. Always black. */}
-      <circle cx={c} cy={c} r={disc} fill="#040208" />
+      <circle cx={c} cy={c} r={disc} fill="#000308" />
       {/* The limb: the one hard, bright edge in the whole mark. */}
       <circle
         cx={c}
         cy={c}
         r={disc}
         fill="none"
-        stroke="#EDF3FF"
+        stroke="#38E2FF"
         strokeWidth={Math.max(0.75, size * 0.0045)}
         opacity={0.12 + 0.78 * t}
       />

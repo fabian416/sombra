@@ -11,6 +11,7 @@
  */
 import type {
   ConfidentialBalance,
+  LedgerRange,
   PublicBalance,
   ReceiveInfo,
   RecoveryProgress,
@@ -27,8 +28,11 @@ import { connect as freighterConnect } from "./freighter";
 
 const CHAIN_KEY = "sombra:mock:chain:v1";
 const LOCAL_KEY = "sombra:mock:local:v1";
+/** Set by a wipe, cleared by a recovery. Without it, local state self-seeds. */
+const WIPED_KEY = "sombra:mock:wiped:v1";
 
-const DEMO_ADDRESS = "GC7XM4YQPFVDMQNL2GQ5KZWJHSPY2DK6TXRB4NWTCMBOJDFVJQ2AL3RE";
+export const DEMO_ADDRESS =
+  "GC7XM4YQPFVDMQNL2GQ5KZWJHSPY2DK6TXRB4NWTCMBOJDFVJQ2AL3RE";
 const POOL_CONTRACT =
   "CBQHNAXSI55GX2GN6D67GK7BHVPSLJUGZQEU7WJ5LKR5PNUCGLIMAO4K";
 
@@ -118,6 +122,15 @@ function txHash(seed: string): string {
 }
 
 export class MockSombraClient implements SombraClient {
+  private simulateGap = false;
+
+  readonly demo = {
+    simulateArchiveGap: (on: boolean) => {
+      this.simulateGap = on;
+    },
+    isSimulatingArchiveGap: () => this.simulateGap,
+  };
+
   private chain(): ChainState {
     const stored = read<ChainState>(CHAIN_KEY);
     if (stored) return stored;
@@ -131,8 +144,16 @@ export class MockSombraClient implements SombraClient {
     return merged;
   }
 
+  /**
+   * A fresh visitor gets a working wallet — losing the openings is the demo's
+   * deliberate act, not its starting point. Once wiped, it stays wiped until a
+   * recovery runs.
+   */
   private local(): LocalState | null {
-    return read<LocalState>(LOCAL_KEY);
+    const stored = read<LocalState>(LOCAL_KEY);
+    if (stored) return stored;
+    if (localStorage.getItem(WIPED_KEY)) return null;
+    return this.ensureLocal();
   }
 
   private setLocal(next: LocalState): void {
@@ -141,7 +162,7 @@ export class MockSombraClient implements SombraClient {
 
   /** Seed local state so a first-run demo starts with a working wallet. */
   private ensureLocal(): LocalState {
-    const existing = this.local();
+    const existing = read<LocalState>(LOCAL_KEY);
     if (existing) return existing;
     const chain = this.chain();
     const seeded: LocalState = {
@@ -321,32 +342,32 @@ export class MockSombraClient implements SombraClient {
     };
   }
 
-  async recoverFromSeed(
-    seed: string,
-    archiveUrl: string,
+  async recoverFromSigner(
+    _archiveUrl: string,
     onProgress: (p: RecoveryProgress) => void,
   ): Promise<RecoveryResult> {
-    const words = seed.trim().split(/\s+/).filter(Boolean);
-    if (words.length < 12) {
-      throw new Error("A recovery phrase is 12 or 24 words.");
-    }
-
     const chain = this.chain();
     const total = chain.eventCount;
     const beyond = chain.eventsBeyondRpcWindow;
     const checkpointLedger = chain.syncedLedger - 41_820;
+    const gapped = this.simulateGap;
 
-    // 1 — derive keys
+    // Phase text stays deliberately generic. This implementation makes no
+    // Archive request and performs no key derivation, so it must not print
+    // route templates or derivation formulas that would read as evidence of
+    // work it did not do.
+
+    // 1 — derive keys from the enrolled signer
     onProgress({
       phase: "derive",
-      label: "Deriving keys from your phrase",
-      detail: "sk = SHA-512(seed) mod r · vk = Poseidon2(sk, contract)",
+      label: "Deriving keys from your signer",
+      detail: "requesting the enrolled signature",
       fraction: 0.04,
     });
     await sleep(900);
     onProgress({
       phase: "derive",
-      label: "Deriving keys from your phrase",
+      label: "Deriving keys from your signer",
       detail: `viewing key ready · account ${chain.address.slice(0, 8)}…`,
       fraction: 0.16,
     });
@@ -355,18 +376,59 @@ export class MockSombraClient implements SombraClient {
     // 2 — checkpoint from the Archive
     onProgress({
       phase: "checkpoint",
-      label: "Fetching checkpoint from Sombra Archive",
-      detail: `GET ${archiveUrl}/v1/accounts/${chain.address.slice(0, 6)}…/checkpoint`,
+      label: "Fetching checkpoint from the Archive",
+      detail: "requesting the latest checkpoint for this account",
       fraction: 0.22,
     });
     await sleep(1_100);
+
+    const coverage: LedgerRange[] = gapped
+      ? [
+          { from: checkpointLedger, to: chain.syncedLedger - 9_000 },
+          { from: chain.syncedLedger - 6_500, to: chain.syncedLedger },
+        ]
+      : [{ from: checkpointLedger, to: chain.syncedLedger }];
+    const missing: LedgerRange[] = gapped
+      ? [{ from: chain.syncedLedger - 8_999, to: chain.syncedLedger - 6_501 }]
+      : [];
+
     onProgress({
       phase: "checkpoint",
-      label: "Fetching checkpoint from Sombra Archive",
-      detail: `checkpoint at ledger ${checkpointLedger.toLocaleString("en-US")} · ${beyond.toLocaleString("en-US")} events predate the 7-day RPC window`,
+      label: "Fetching checkpoint from the Archive",
+      detail: `checkpoint at ledger ${checkpointLedger.toLocaleString("en-US")} · ${beyond.toLocaleString("en-US")} events sit below the RPC retention floor`,
       fraction: 0.32,
+      complete: !gapped,
+      archiveCoverage: coverage,
     });
     await sleep(600);
+
+    // An Archive that cannot serve the whole range stops the recovery here.
+    // Degrading to a partial replay would produce openings that fail
+    // verification for a reason the person could not distinguish from tampering.
+    if (gapped) {
+      const hole = missing[0];
+      onProgress({
+        phase: "checkpoint",
+        label: "The Archive is missing part of your history",
+        detail: `no events held for ledgers ${hole.from.toLocaleString("en-US")}–${hole.to.toLocaleString("en-US")}`,
+        fraction: 0.32,
+        complete: false,
+        archiveCoverage: coverage,
+      });
+      return {
+        address: chain.address,
+        eventsReplayed: 0,
+        fromLedger: DEPLOY_LEDGER,
+        throughLedger: chain.syncedLedger,
+        restored: await this.getConfidentialBalance(),
+        beyondRpcWindow: beyond,
+        verifiedAgainstChain: false,
+        complete: false,
+        archiveCoverage: coverage,
+        failure: "incomplete",
+        missingRanges: missing,
+      };
+    }
 
     // 3 — replay, the part that takes real time
     const startedAt = performance.now();
@@ -380,11 +442,13 @@ export class MockSombraClient implements SombraClient {
         const replayed = Math.floor(eased * total);
         onProgress({
           phase: "replay",
-          label: "Replaying events since the last merge",
+          label: "Replaying events since the checkpoint",
           detail: `deposit · transfer · merge · ${replayed.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} applied`,
           fraction: 0.32 + eased * 0.42,
           eventsReplayed: replayed,
           eventsTotal: total,
+          complete: true,
+          archiveCoverage: coverage,
         });
         if (ratio >= 1) resolve();
         else requestAnimationFrame(tick);
@@ -396,19 +460,24 @@ export class MockSombraClient implements SombraClient {
     onProgress({
       phase: "verify",
       label: "Verifying against on-chain commitments",
-      detail: "re-committing (v, r) and comparing to the chain",
+      detail: "re-committing the rebuilt openings and comparing to the chain",
       fraction: 0.8,
+      complete: true,
+      archiveCoverage: coverage,
     });
     await sleep(1_200);
     onProgress({
       phase: "verify",
       label: "Verifying against on-chain commitments",
-      detail: `spendable ✓ ${commitmentFor("spendable", chain.spendable).slice(0, 18)}…`,
+      detail: "spendable and receiving both match",
       fraction: 0.9,
+      complete: true,
+      archiveCoverage: coverage,
     });
     await sleep(700);
 
     // 5 — restore
+    localStorage.removeItem(WIPED_KEY);
     this.setLocal({
       spendable: chain.spendable,
       receiving: chain.receiving,
@@ -421,6 +490,8 @@ export class MockSombraClient implements SombraClient {
       fraction: 1,
       eventsReplayed: total,
       eventsTotal: total,
+      complete: true,
+      archiveCoverage: coverage,
     });
 
     const restored = await this.getConfidentialBalance();
@@ -432,6 +503,8 @@ export class MockSombraClient implements SombraClient {
       restored,
       beyondRpcWindow: beyond,
       verifiedAgainstChain: true,
+      complete: true,
+      archiveCoverage: coverage,
     };
   }
 
@@ -500,5 +573,6 @@ export class MockSombraClient implements SombraClient {
 
   wipeLocalState(): void {
     localStorage.removeItem(LOCAL_KEY);
+    localStorage.setItem(WIPED_KEY, "1");
   }
 }

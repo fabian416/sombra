@@ -11,18 +11,20 @@ export function cx(...parts: Array<string | false | null | undefined>) {
 /** The layer a piece of UI operates on. Real information, not decoration. */
 export type Layer = "CT" | "SPP" | "ARCHIVE" | "PUBLIC";
 
+/* Cyan marks the private layers. Public is deliberately colourless — it is the
+   absence of the brand, which is the whole point. */
 const LAYER_TONE: Record<Layer, string> = {
-  CT: "text-corona-dim border-corona-dim/30",
-  SPP: "text-pool border-pool/35",
-  ARCHIVE: "text-horizon border-horizon/35",
-  PUBLIC: "text-horizon border-horizon/35",
+  CT: "text-cyan border-cyan/35",
+  SPP: "text-cyan-mid border-cyan-mid/35",
+  ARCHIVE: "text-cyan border-cyan/35",
+  PUBLIC: "text-corona-dim border-white/20",
 };
 
 export function LayerTag({ layer }: { layer: Layer }) {
   return (
     <span
       className={cx(
-        "eyebrow inline-flex items-center border px-1.5 py-px leading-none",
+        "eyebrow inline-flex items-center rounded-full border px-2 py-px leading-none",
         LAYER_TONE[layer],
       )}
     >
@@ -92,13 +94,13 @@ export function Button({
   ...rest
 }: ButtonProps) {
   const base =
-    "relative inline-flex items-center justify-center gap-2 border px-4 py-2.5 text-[13px] font-medium tracking-[0.01em] transition-colors duration-150 disabled:cursor-not-allowed disabled:opacity-45";
+    "relative inline-flex items-center justify-center gap-2 rounded-full border px-5 py-2.5 text-[13px] font-medium tracking-[0.01em] transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:translate-y-0";
   const tone =
     variant === "primary"
-      ? "border-horizon bg-horizon text-umbra hover:bg-[#ffb257] hover:border-[#ffb257]"
+      ? "border-transparent bg-gradient-to-r from-cyan-400 via-sky-400 to-blue-500 font-semibold text-black glow-cta hover:-translate-y-0.5"
       : variant === "danger"
-        ? "border-chroma/45 text-chroma hover:bg-chroma/10 hover:border-chroma"
-        : "border-limb-bright text-corona-dim hover:border-corona-dim/60 hover:text-corona";
+        ? "border-chroma/45 bg-chroma/5 text-chroma hover:border-chroma hover:bg-chroma/15"
+        : "border-white/20 bg-white/5 text-corona-dim backdrop-blur hover:-translate-y-0.5 hover:border-white/40 hover:bg-white/10 hover:text-corona";
 
   return (
     <button
@@ -146,8 +148,10 @@ export function Field({
       </div>
       <div
         className={cx(
-          "mt-2 flex items-center border bg-umbra-lift transition-colors",
-          error ? "border-chroma/60" : "border-limb focus-within:border-ash",
+          "mt-2 flex items-center rounded-xl border bg-white/5 backdrop-blur transition-colors",
+          error
+            ? "border-chroma/60"
+            : "border-white/15 focus-within:border-cyan/60",
         )}
       >
         <input
@@ -171,12 +175,12 @@ export function Stat({
 }: {
   label: string;
   value: ReactNode;
-  tone?: "corona" | "horizon" | "pool" | "ash";
+  tone?: "corona" | "cyan" | "pool" | "ash";
   sub?: ReactNode;
 }) {
   const tones = {
     corona: "text-corona",
-    horizon: "text-horizon",
+    cyan: "text-cyan",
     pool: "text-pool",
     ash: "text-ash",
   } as const;
@@ -199,12 +203,17 @@ export function Notice({
   children: ReactNode;
 }) {
   const tones = {
-    info: "border-limb text-ash",
-    warn: "border-chroma/40 bg-chroma/[0.06] text-chroma",
-    good: "border-horizon/35 bg-horizon/[0.05] text-horizon",
+    info: "border-white/12 bg-white/[0.04] text-ash",
+    warn: "border-chroma/40 bg-chroma/[0.07] text-chroma",
+    good: "border-cyan/35 bg-cyan/[0.07] text-cyan",
   } as const;
   return (
-    <div className={cx("border px-4 py-3 text-[13px] leading-relaxed", tones[tone])}>
+    <div
+      className={cx(
+        "rounded-xl border px-4 py-3 text-[13px] leading-relaxed backdrop-blur",
+        tones[tone],
+      )}
+    >
       {children}
     </div>
   );
@@ -224,13 +233,13 @@ export function CopyLine({
     <button
       type="button"
       onClick={() => void navigator.clipboard?.writeText(value)}
-      className="group flex w-full items-center justify-between gap-3 border border-limb bg-umbra-lift px-3.5 py-2.5 text-left transition-colors hover:border-ash/50"
+      className="group flex w-full items-center justify-between gap-3 rounded-xl border border-white/15 bg-white/5 px-3.5 py-2.5 text-left backdrop-blur transition-colors hover:border-cyan/50"
       title={`Copy ${label ?? "value"}`}
     >
       <span className="numeral truncate text-[13px] text-corona-dim">
         {display ?? value}
       </span>
-      <span className="eyebrow shrink-0 text-ash transition-colors group-hover:text-horizon">
+      <span className="eyebrow shrink-0 text-ash transition-colors group-hover:text-cyan group-hover:[text-shadow:0_0_14px_rgba(56,226,255,0.6)]">
         Copy
       </span>
     </button>

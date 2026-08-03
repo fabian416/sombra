@@ -1,44 +1,45 @@
 @import "tailwindcss";
 
-@import "@fontsource-variable/archivo";
-@import "@fontsource/ibm-plex-sans/400.css";
-@import "@fontsource/ibm-plex-sans/500.css";
-@import "@fontsource/ibm-plex-sans/600.css";
-@import "@fontsource/ibm-plex-mono/400.css";
-@import "@fontsource/ibm-plex-mono/500.css";
-@import "@fontsource/ibm-plex-mono/600.css";
+@import "@fontsource-variable/geist";
+@import "@fontsource-variable/geist-mono";
 
 /*
-  Sombra design tokens — a total solar eclipse.
-  The sky at totality is not black: it is deep violet, ringed by a 360-degree
-  sunset horizon, with a pearl corona and magenta hydrogen-alpha prominences.
+  Sombra design tokens — the team's Lunarys identity, applied to an eclipse.
 
-  The palette carries meaning, not decoration:
-    horizon (warm amber)  = public, on-chain, visible to everyone
-    corona  (pearl blue)  = confidential, revealed in-wallet only
-    penumbra(violet)      = the shielded pool (SPP)
-    chroma  (prominence)  = risk, loss, destructive action
+  Canvas is deep navy-black (#020617): space, not terminal. The single accent is
+  neon cyan (#38E2FF), which is the chromatic complement of Stellar's yellow —
+  a deliberate contrast, because private is the opposite of public.
+
+  Semantics:
+    cyan   = confidential / private (the brand, and the corona)
+    white  = public, on-chain, readable by anyone
+    violet = atmosphere only, never a control
+    rose   = destructive and risk only
 */
 @theme {
-  --color-umbra: #07050d;
-  --color-umbra-lift: #0c0915;
-  --color-penumbra: #110c1b;
-  --color-limb: #251c3a;
-  --color-limb-bright: #3a2d59;
-  --color-ash: #8b82a6;
-  --color-corona: #e9eef8;
-  --color-corona-dim: #b8c6de;
-  --color-horizon: #f2a03d;
-  --color-horizon-dim: #a5702c;
+  --color-umbra: #020617;
+  --color-umbra-lift: rgba(255, 255, 255, 0.04);
+  --color-penumbra: rgba(255, 255, 255, 0.05);
+  --color-limb: rgba(56, 226, 255, 0.18);
+  --color-limb-bright: rgba(56, 226, 255, 0.4);
+
+  --color-cyan: #38e2ff;
+  --color-cyan-mid: #22b8d8;
+  --color-cyan-deep: #0e7490;
+
+  --color-corona: #ffffff;
+  --color-corona-dim: #cbd5e1;
+  --color-ash: #8ba0b8;
+  --color-pool: #38e2ff;
   --color-chroma: #ff4d6d;
-  --color-pool: #9b7ce8;
 
-  --font-display: "Archivo Variable", "Archivo", ui-sans-serif, system-ui,
+  --font-display: "Geist Variable", "Geist", ui-sans-serif, system-ui,
     sans-serif;
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", monospace;
+  --font-sans: "Geist Variable", "Geist", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "Geist Mono Variable", "Geist Mono", ui-monospace,
+    "SFMono-Regular", monospace;
 
-  --radius-panel: 3px;
+  --radius-panel: 1rem;
 }
 
 @layer base {
@@ -63,15 +64,12 @@
     text-rendering: optimizeLegibility;
   }
 
-  /* The wordmark and display headings run wide and monumental — an
-     observatory bulletin, not a SaaS dashboard. */
   h1,
   h2,
   .display {
     font-family: var(--font-display);
-    font-variation-settings: "wdth" 118;
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-weight: 600;
+    letter-spacing: -0.028em;
     line-height: 1.05;
   }
 
@@ -84,13 +82,13 @@
   }
 
   :focus-visible {
-    outline: 2px solid var(--color-horizon);
+    outline: 2px solid var(--color-cyan);
     outline-offset: 2px;
   }
 
   ::selection {
-    background: var(--color-horizon);
-    color: var(--color-umbra);
+    background: var(--color-cyan);
+    color: #000;
   }
 
   ::-webkit-scrollbar {
@@ -98,17 +96,18 @@
     height: 10px;
   }
   ::-webkit-scrollbar-track {
-    background: var(--color-umbra);
+    background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: var(--color-limb);
+    background: rgba(56, 226, 255, 0.22);
     border: 3px solid var(--color-umbra);
+    border-radius: 999px;
   }
 }
 
 @layer components {
-  /* Eyebrow labels: small, wide-tracked mono. Used to name the layer a piece
-     of the UI operates on (CT / SPP / ARCHIVE / PUBLIC). */
+  /* Small wide-tracked mono labels. Used to name the layer a piece of UI
+     operates on (CT / SPP / ARCHIVE / PUBLIC). */
   .eyebrow {
     font-family: var(--font-mono);
     font-size: 10px;
@@ -118,10 +117,13 @@
     color: var(--color-ash);
   }
 
+  /* Glassmorphism: the content plane floats over the atmosphere. */
   .panel {
-    background-color: var(--color-penumbra);
-    border: 1px solid var(--color-limb);
+    background-color: rgba(255, 255, 255, 0.045);
+    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: var(--radius-panel);
+    backdrop-filter: blur(14px);
+    box-shadow: 0 20px 60px -28px rgba(56, 226, 255, 0.45);
   }
 
   /* Numerals are data. All of them are mono, tabular, and never wrap. */
@@ -131,27 +133,58 @@
     letter-spacing: -0.02em;
     white-space: nowrap;
   }
+
+  /* Same face, for long opaque strings — commitments, keys, URLs — that must
+     wrap inside their panel instead of blowing out the grid column. */
+  .numeral-wrap {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+    word-break: break-all;
+  }
 }
 
-/* The 360-degree horizon ring of a total eclipse, pinned to the bottom edge of
-   the viewport. Ambient on every screen; the only always-on warm light. */
-.horizon-glow {
+/* Neon. Cyan behaves like a light source, not a swatch. */
+.glow-text {
+  text-shadow:
+    0 0 18px rgba(56, 226, 255, 0.55),
+    0 0 60px rgba(56, 226, 255, 0.25);
+}
+
+.glow-soft {
+  box-shadow: 0 20px 60px -28px rgba(56, 226, 255, 0.45);
+}
+
+.glow-hero {
+  box-shadow: 0 45px 140px -80px rgba(56, 226, 255, 0.8);
+}
+
+.glow-cta {
+  box-shadow: 0 0 45px rgba(56, 226, 255, 0.45);
+}
+
+/* Radial wash falling from the top of the viewport. */
+.atmosphere-wash {
   position: fixed;
-  inset-inline: 0;
-  bottom: 0;
-  height: 46vh;
+  inset: 0;
   pointer-events: none;
   z-index: 0;
   background: radial-gradient(
-    125% 100% at 50% 116%,
-    rgba(242, 160, 61, 0.26) 0%,
-    rgba(242, 160, 61, 0.1) 30%,
-    rgba(155, 124, 232, 0.06) 55%,
-    transparent 80%
+    circle at top,
+    rgba(56, 226, 255, 0.12),
+    transparent 55%
   );
 }
 
-/* Corona ignition — used on the Recover stage as each step lands. */
+/* Blurred colour fields, partly off-canvas. Atmosphere only — never a control. */
+.orb {
+  position: fixed;
+  border-radius: 9999px;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(150px);
+}
+
 @keyframes corona-drift {
   from {
     transform: rotate(0deg);
@@ -190,6 +223,18 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+/* Letter cascade for the Recover phase overlays. */
+@keyframes glyph-in {
+  from {
+    opacity: 0;
+    filter: blur(6px);
+  }
+  to {
+    opacity: 1;
+    filter: none;
   }
 }
 
