@@ -143,11 +143,11 @@
   pointer-events: none;
   z-index: 0;
   background: radial-gradient(
-    120% 100% at 50% 118%,
-    rgba(242, 160, 61, 0.17) 0%,
-    rgba(242, 160, 61, 0.07) 32%,
-    rgba(155, 124, 232, 0.05) 55%,
-    transparent 78%
+    125% 100% at 50% 116%,
+    rgba(242, 160, 61, 0.26) 0%,
+    rgba(242, 160, 61, 0.1) 30%,
+    rgba(155, 124, 232, 0.06) 55%,
+    transparent 80%
   );
 }
 

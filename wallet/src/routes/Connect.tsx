@@ -123,7 +123,7 @@ export function Connect() {
 export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      <Eclipse size={compact ? 26 : 30} intensity={0.9} />
+      <Eclipse size={compact ? 24 : 28} intensity={1} variant="mark" />
       <span
         className="display leading-none text-corona"
         style={{
@@ -147,43 +147,45 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
 function EclipsePlate() {
   return (
     <div className="flex justify-center lg:justify-end">
-      <div className="relative aspect-square w-[min(86vw,440px)]">
+      <div className="relative aspect-square w-[min(84vw,420px)]">
         <Eclipse
-          size={440}
+          size={420}
           intensity={1}
           className="absolute inset-0 h-full w-full"
         />
 
+        {/* Leader lines, drawn in the plate's own coordinate space so they stay
+            pinned to the disc and the corona at every viewport width. */}
         <svg
           viewBox="0 0 100 100"
           preserveAspectRatio="none"
           className="absolute inset-0 h-full w-full"
           aria-hidden
         >
-          <g stroke="#3A2D59" strokeWidth="0.22" fill="none">
-            <path d="M 58 42 L 74 24 L 88 24" />
-            <path d="M 30 61 L 16 76 L 3 76" />
+          <g stroke="#3A2D59" strokeWidth="0.3" fill="none">
+            <path d="M 57 43 L 70 22 L 100 22" />
+            <path d="M 30 60 L 15 79 L 0 79" />
           </g>
-          <circle cx="58" cy="42" r="0.7" fill="#8B82A6" />
-          <circle cx="30" cy="61" r="0.7" fill="#DCE7F5" />
+          <circle cx="57" cy="43" r="0.8" fill="#8B82A6" />
+          <circle cx="30" cy="60" r="0.8" fill="#EDF3FF" />
         </svg>
 
-        <div className="absolute left-[80%] top-[12%] w-[9rem] -translate-y-full pb-1">
+        <div className="absolute right-0 top-0 w-[9.5rem] text-right">
           <Eyebrow className="text-ash">The chain sees</Eyebrow>
-          <p className="numeral mt-1 text-[12px] leading-snug text-ash">
+          <p className="numeral mt-1 text-[12.5px] leading-snug text-ash">
             0x04a1…9f3c
           </p>
-          <p className="mt-1 text-[12px] leading-snug text-ash/70">
+          <p className="mt-0.5 text-[12px] leading-snug text-ash/65">
             a Pedersen commitment
           </p>
         </div>
 
-        <div className="absolute left-0 top-[78%] w-[10.5rem]">
+        <div className="absolute bottom-0 left-0 w-[10.5rem]">
           <Eyebrow className="text-corona-dim">You see</Eyebrow>
-          <p className="numeral mt-1 text-[13px] leading-snug text-corona">
+          <p className="numeral mt-1 text-[13.5px] leading-snug text-corona">
             840.2500000 XLM
           </p>
-          <p className="mt-1 text-[12px] leading-snug text-ash">
+          <p className="mt-0.5 text-[12px] leading-snug text-ash">
             spendable, right now
           </p>
         </div>
