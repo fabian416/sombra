@@ -11,8 +11,7 @@ import { describe, expect, it } from "vitest";
 import { ArchiveClient, ArchiveError } from "../src/archive.js";
 import { RpcClient, RpcError } from "../src/chain.js";
 import { decodeEvents } from "../src/events.js";
-import { ed25519Signer } from "../src/keys.js";
-import { demoKeysFromEd25519Secret } from "../src/legacy-derivation.js";
+import { deriveKeysFromEd25519Secret, ed25519Signer } from "../src/keys.js";
 import { replay, verifyAgainstChain } from "../src/replay.js";
 import {
   DEFAULT_SEAM_MARGIN,
@@ -278,12 +277,11 @@ describe("end-to-end — recoverFromSigner against the fakes", () => {
     const { encodeStrkey } = await import("../src/crypto/address.js");
     const signerAddress = encodeStrkey("account", ed25519.getPublicKey(secret));
 
-    // Register the signer's address in the sim with keys derived the legacy way,
-    // so the on-chain Y matches what recoverFromSigner will derive.
-    const keys = await demoKeysFromEd25519Secret(secret, {
+    // Register the signer's address in the sim under the §5.1 derivation, so
+    // the on-chain Y is the one recoverFromSigner will independently derive.
+    const keys = await deriveKeysFromEd25519Secret(secret, {
       contractId: sim.contractId,
       account: signerAddress,
-      networkPassphrase: "Test SDF Network ; September 2015",
     });
     sim.register(signerAddress, keys.sk);
     sim.deposit(SINK, signerAddress, 5_000n);
@@ -301,8 +299,6 @@ describe("end-to-end — recoverFromSigner against the fakes", () => {
       account: signerAddress,
       rpc,
       archive,
-      derivation: "legacy-demo",
-      networkPassphrase: "Test SDF Network ; September 2015",
       marginLedgers: MARGIN,
       onProgress: (p) => phases.push(p.phase),
     });
@@ -340,8 +336,6 @@ describe("end-to-end — recoverFromSigner against the fakes", () => {
       account: signerAddress,
       rpc,
       archive,
-      derivation: "legacy-demo",
-      networkPassphrase: "Test SDF Network ; September 2015",
       marginLedgers: MARGIN,
     }).catch((e: unknown) => e);
 

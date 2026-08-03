@@ -50,7 +50,7 @@ export const SIGNER_MESSAGE_LENGTH = 151;
  * a stored 32-byte value, or nothing beyond the stored `sk` — and "a user MUST
  * NOT be shown a recovery affordance an account's form cannot satisfy".
  */
-export type RootForm = "signer" | "raw" | "import" | "legacy-demo";
+export type RootForm = "signer" | "raw" | "import";
 
 export interface ConfidentialKeys {
   /** Spending key, `sk ∈ [1, r)`. */

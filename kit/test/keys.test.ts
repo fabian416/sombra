@@ -20,10 +20,20 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { ed25519 } from "@noble/curves/ed25519.js";
+import { hkdf } from "@noble/hashes/hkdf.js";
+import { sha512 } from "@noble/hashes/sha2.js";
 import { describe, expect, it } from "vitest";
 
 import { addressToField, encodeStrkey } from "../src/crypto/address.js";
-import { FR, toHex32 } from "../src/crypto/field.js";
+import {
+  FR,
+  concatBytes,
+  frMod,
+  fromBytesBE,
+  toBytes4LE,
+  toBytes32BE,
+  toHex32,
+} from "../src/crypto/field.js";
 import { publicViewingKey, spendingPublicKey } from "../src/crypto/grumpkin.js";
 import { vkFromSk } from "../src/crypto/poseidon2.js";
 import {
@@ -39,7 +49,6 @@ import {
   sep53Digest,
   signerMessage,
 } from "../src/keys.js";
-import { demoKeysFromEd25519Secret, demoSignerMessage } from "../src/legacy-derivation.js";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const SCRIPTS = join(HERE, "..", "..", "scripts");
@@ -203,36 +212,6 @@ describe("SDK.md §5.1 — HKDF, rejection sampling, and the hierarchy", () => {
     expect(() => keysFromSpendingKey(0n, ctx)).toThrow(/nonzero canonical/);
     expect(() => keysFromSpendingKey(FR, ctx)).toThrow(/nonzero canonical/);
     expect(keysFromSpendingKey(42n, ctx).rootForm).toBe("import");
-  });
-});
-
-describe("the derivation fork — the spec and the demo produce different accounts", () => {
-  it("§5.1 and the legacy scheme disagree on sk from the same signer", async () => {
-    const alice = localSigner(1);
-    const spec = await deriveKeysFromEd25519Secret(alice.secret, {
-      contractId: CONTRACT,
-      account: alice.address,
-    });
-    const legacy = await demoKeysFromEd25519Secret(alice.secret, {
-      contractId: CONTRACT,
-      account: alice.address,
-      networkPassphrase: "Test SDF Network ; September 2015",
-    });
-    // This inequality is the reason `legacy-derivation.ts` exists. An account
-    // registered under one is unrecoverable under the other, permanently.
-    expect(legacy.sk).not.toBe(spec.sk);
-    expect(legacy.rootForm).toBe("legacy-demo");
-    expect(spec.rootForm).toBe("signer");
-    // Everything below sk is shared and normative.
-    expect(legacy.vk).toBe(vkFromSk(legacy.sk, legacy.addrF));
-    expect(legacy.addrF).toBe(spec.addrF);
-  });
-
-  it("the two signer messages are different strings", () => {
-    const { address } = localSigner(1);
-    expect(demoSignerMessage("Test SDF Network ; September 2015", CONTRACT)).not.toBe(
-      signerMessage({ contractId: CONTRACT, account: address }),
-    );
   });
 });
 
@@ -425,6 +404,59 @@ describe("parity with the deployed demo accounts", () => {
       // account happens to need one re-roll, which is worth asserting so the
       // branch is known to be covered by a real key rather than a synthetic one.
       expect(accountVectors!.some((v) => v.rejectionCounter > 0)).toBe(true);
+    },
+  );
+});
+
+describe("SDK.md §4.7 — the rejection counter is a real code path", () => {
+  /**
+   * `scripts/` reports the secondary demo account at `j = 1`: its first HKDF
+   * candidate failed §4.7 and had to be re-rolled. That makes it the one
+   * account able to demonstrate what a client that hardcodes `j = 0` — or that
+   * reduces the OKM instead of rejection-sampling it — actually produces.
+   *
+   * The failure is not a crash. It is a well-formed scalar that yields a
+   * different `Y`, so registration would succeed and the account would then be
+   * unreachable from the key its owner believes controls it.
+   */
+  const rerolled = accountVectors?.find((v) => v.rejectionCounter > 0);
+  const record =
+    rerolled === undefined
+      ? undefined
+      : demoKeys?.[rerolled.label as "primary" | "secondary"];
+
+  it.skipIf(rerolled === undefined || record === undefined || deployment === null)(
+    "an account at j > 0 is unreachable from a j = 0 derivation",
+    () => {
+      const seed = decodeSecretSeed(record!.secret);
+      const message = signerMessage({
+        contractId: deployment!.contractId,
+        account: rerolled!.account,
+      });
+      const root = ed25519.sign(sep53Digest(message), seed);
+
+      // The naive derivation: one HKDF pull at j = 0, reduced mod r rather
+      // than rejection-sampled.
+      const info = concatBytes(
+        toBytes32BE(addressToField(deployment!.contractId)),
+        toBytes32BE(addressToField(rerolled!.account)),
+        toBytes4LE(0),
+      );
+      const naiveSk = frMod(fromBytesBE(hkdf(sha512, root, new TextEncoder().encode(SK_LABEL), info, 32)));
+      const naiveY = spendingPublicKey(naiveSk);
+
+      // It is a perfectly usable key — and it is the wrong one.
+      expect(naiveSk).toBeGreaterThan(0n);
+      expect([toHex32(naiveY.x), toHex32(naiveY.y)]).not.toEqual(rerolled!.Y);
+
+      // The correct derivation reaches the account's real, on-chain Y.
+      const keys = deriveKeysFromRoot(
+        root,
+        { contractId: deployment!.contractId, account: rerolled!.account },
+        "signer",
+      );
+      expect(keys.rejectionCounter).toBe(rerolled!.rejectionCounter);
+      expect([toHex32(keys.Y.x), toHex32(keys.Y.y)]).toEqual(rerolled!.Y);
     },
   );
 });

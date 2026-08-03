@@ -113,14 +113,6 @@ export {
   signerMessage,
 } from "./keys.js";
 
-export {
-  type DemoDerivationContext,
-  demoKeysFromEd25519Secret,
-  demoKeysFromSignature,
-  demoKeysFromSigner,
-  demoSignerMessage,
-} from "./legacy-derivation.js";
-
 // ------------------------------------------------------------------- events
 export {
   type ConfidentialEvent,

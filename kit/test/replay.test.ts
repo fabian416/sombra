@@ -378,3 +378,57 @@ describe("SDK.md §4.6 — blindings accumulate mod q, never mod r", () => {
     expect(commit(r.receiving.v, modR)).not.toEqual(sim.onChain(ALICE).receivingCommitment);
   });
 });
+
+describe("a truncated archive range is distinguishable from tampering", () => {
+  /**
+   * The failure mode REVIEW.md B4 describes, and the one this demo reaches by
+   * *waiting*: once the RPC retention floor passes the contract's deploy
+   * ledger, an archive that cold-started at `auto` holds a range beginning
+   * after the account's `Register`.
+   *
+   * Step 7 fails closed, as it must. What this pins is that the replay also
+   * reports *why* — `t0Anchor === "stream-start"` — so the refusal can be
+   * rendered as "the archive does not reach back far enough" instead of the
+   * identical-looking "verification failed".
+   */
+  it("reports stream-start and fails step 7 when the range begins after Register", () => {
+    const sim = setup();
+    sim.deposit(SINK, ALICE, 1_000n);
+    sim.transfer(BOB, ALICE, 500n);
+    sim.deposit(SINK, ALICE, 250n);
+
+    const events = sortEvents(decodeEvents(sim.eventsFor(ALICE)));
+    // The archive's coverage starts after registration and after the first
+    // credit — everything from the transfer onward survives.
+    const truncated = events.slice(2);
+    expect(truncated.some((e) => e.type === "register")).toBe(false);
+
+    const r = replay({ account: ALICE, vk: sim.account(ALICE).vk, events: truncated });
+
+    expect(r.t0Anchor).toBe("stream-start");
+    const v = verifyAgainstChain(r.spendable, r.receiving, sim.onChain(ALICE));
+    expect(v.ok).toBe(false);
+    // The receiving side is short by exactly the credit that fell below the range.
+    expect(r.receiving.v).toBe(750n);
+    expect(sim.account(ALICE).receiving.v).toBe(1_750n);
+  });
+
+  it("a range that still covers T_0 verifies even without Register", () => {
+    // Not every short range is broken: once a merge inside the range anchors
+    // T_0, the events below it are genuinely not needed. Refusing on "no
+    // Register" alone would reject this, which is why step 7 stays the
+    // authority and the anchor is only used to explain a failure.
+    const sim = setup();
+    sim.deposit(SINK, ALICE, 1_000n);
+    sim.merge(ALICE);
+    sim.transfer(ALICE, BOB, 200n);
+    sim.transfer(BOB, ALICE, 300n);
+
+    const events = sortEvents(decodeEvents(sim.eventsFor(ALICE)));
+    const fromMergeOn = events.filter((e) => e.type !== "register" && e.type !== "deposit");
+    const r = replay({ account: ALICE, vk: sim.account(ALICE).vk, events: fromMergeOn });
+
+    expect(r.t0Anchor).toBe("merge");
+    expect(verifyAgainstChain(r.spendable, r.receiving, sim.onChain(ALICE)).ok).toBe(true);
+  });
+});

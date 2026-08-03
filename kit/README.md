@@ -95,7 +95,7 @@ case and gets a different error type, carrying the coverage so a UI can say
 ## Tests
 
 ```
-npm test          # 101 tests
+npm test          # 102 tests
 npm run build     # tsup → dist/, ESM, platform-neutral
 npm run typecheck
 ```
@@ -104,8 +104,8 @@ npm run typecheck
 |:--|--:|:--|
 | `conformance.test.ts` | 21 | All 17 `circuits/lib/testdata/*.json` fixtures, plus the mod-q rule |
 | `xdr.test.ts` | 22 | The hand-rolled XDR grammar against `@stellar/stellar-base` |
-| `keys.test.ts` | 24 | `SDK.md` §5, and byte-parity with `scripts/derive.ts` |
-| `replay.test.ts` | 20 | `DESIGN.md` §5.2 steps 1–7, `INDEXER.md` §2 and §3.4 |
+| `keys.test.ts` | 23 | `SDK.md` §5, and byte-parity with `scripts/derive.ts` |
+| `replay.test.ts` | 22 | `DESIGN.md` §5.2 steps 1–7, `INDEXER.md` §2 and §3.4 |
 | `seam.test.ts` | 14 | `SDK.md` §12.3 / §12.4, and end-to-end recovery |
 
 Two properties make these worth more than their count.
@@ -123,13 +123,17 @@ opening re-commits to a point derived independently of the replay — which is
 what step 7 checks against a real chain. ECDH commutativity has to actually
 hold for the suite to be green.
 
-## Notes
+**Key derivation is `SDK.md` §5 and nothing else.** There is no fallback path
+and no second scheme — the CT demo app's `sk = SHA-512(signature) mod r` is not
+implemented here, because a callable non-spec derivation in a shipped library is
+a thing someone reaches for by accident, and the failure mode is an account that
+`register` has permanently bound to the wrong key. `keys.test.ts` pins the whole
+chain against the vector `scripts/derive.ts` publishes, including the case that
+makes this concrete: the demo's secondary account derives at rejection counter
+`j = 1`, and a client that hardcodes `j = 0` gets a perfectly well-formed
+scalar that is the wrong key.
 
-`legacy-derivation.ts` implements `sk = SHA-512(signature) mod r`, the CT demo
-app's non-normative shortcut. It is **not** the derivation the live demo uses —
-`deployment.json` records those accounts under `supersededAccounts` — and exists
-only so their on-chain events remain reachable. Anything it produces is tagged
-`rootForm: "legacy-demo"`, which `SDK.md` §5.3 makes a MUST to record.
+## Notes
 
 All original work, written against the published specifications. No code is
 copied from the reference SDK or the demo app.

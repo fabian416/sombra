@@ -35,7 +35,6 @@ import {
   type MessageSigner,
   deriveKeysFromSigner,
 } from "./keys.js";
-import { demoKeysFromSigner } from "./legacy-derivation.js";
 import {
   type OnChainAccount,
   type Opening,
@@ -104,6 +103,14 @@ export interface RecoveryResult {
   /** SDK.md §10.7 — no spend proof is constructible against this commitment. */
   spendableBlindingUnencodable: boolean;
 
+  /**
+   * The served history reached far enough back to anchor T_0 at a merge or at
+   * the account's `Register`. False means the archive's range begins after the
+   * account was created, so a verification failure is an incompleteness
+   * symptom rather than evidence of tampering.
+   */
+  historyReachesRegistration: boolean;
+
   sync: SyncResult;
   replay: ReplayResult;
   chain: OnChainAccount;
@@ -117,14 +124,6 @@ export interface RecoverOptions extends SeamOptions {
   account?: string;
   rpc: RpcClient | string;
   archive: ArchiveClient | string;
-  /**
-   * `"spec"` — SDK.md §5.1 + §5.2, the conformant derivation and the default.
-   * `"legacy-demo"` — the non-normative scheme the pre-existing demo accounts
-   * were registered under; see `legacy-derivation.ts`. Requires
-   * {@link networkPassphrase}.
-   */
-  derivation?: "spec" | "legacy-demo";
-  networkPassphrase?: string;
   onProgress?: (p: RecoveryProgress) => void;
   failOnIncomplete?: boolean;
   types?: readonly string[];
@@ -145,13 +144,7 @@ function pointHex(p: Point): string {
 }
 
 export async function recoverFromSigner(options: RecoverOptions): Promise<RecoveryResult> {
-  const {
-    signer,
-    contractId,
-    account = signer.publicKey,
-    derivation = "spec",
-    onProgress,
-  } = options;
+  const { signer, contractId, account = signer.publicKey, onProgress } = options;
 
   const rpc = typeof options.rpc === "string" ? new RpcClient(options.rpc) : options.rpc;
   const archive =
@@ -164,27 +157,13 @@ export async function recoverFromSigner(options: RecoverOptions): Promise<Recove
   report({
     phase: "derive",
     label: "Asking your wallet to sign",
-    detail:
-      derivation === "spec"
-        ? "SDK.md §5.2 signer root — signing twice to prove the signature is deterministic"
-        : "legacy demo derivation — sk = SHA-512(signature) mod r",
+    detail: "SDK.md §5.2 signer root — signing twice to prove the signature is deterministic",
     fraction: 0.04,
   });
 
   let keys: ConfidentialKeys;
   try {
-    if (derivation === "legacy-demo") {
-      if (options.networkPassphrase === undefined) {
-        throw new Error("the legacy demo derivation needs networkPassphrase");
-      }
-      keys = await demoKeysFromSigner(signer, {
-        contractId,
-        account,
-        networkPassphrase: options.networkPassphrase,
-      });
-    } else {
-      keys = await deriveKeysFromSigner(signer, ctx);
-    }
+    keys = await deriveKeysFromSigner(signer, ctx);
   } catch (err) {
     throw new RecoveryError(err instanceof Error ? err.message : String(err), "derive");
   }
@@ -208,10 +187,9 @@ export async function recoverFromSigner(options: RecoverOptions): Promise<Recove
   if (!verifySpendingKey(keys.Y, chain)) {
     throw new RecoveryError(
       "the derived spending public key does not match the one this account registered. " +
-        (derivation === "spec"
-          ? "The account was most likely enrolled under a different derivation — registration is " +
-            "single-use, so the key cannot be rotated in place."
-          : "The signer holds a different key than the one this account was registered with."),
+        "Either the signer holds a different key than the one this account was enrolled with, " +
+        "or the account was enrolled under a different derivation — registration is single-use, " +
+        "so the key cannot be rotated in place.",
       "derive",
     );
   }
@@ -279,7 +257,35 @@ export async function recoverFromSigner(options: RecoverOptions): Promise<Recove
     eventsTotal: sync.events.length,
   });
 
-  const verification = verifyAgainstChain(result.spendable, result.receiving, chain);
+  /**
+   * Did the served history reach far enough back to anchor T_0?
+   *
+   * `stream-start` means neither a merge before the checkpoint nor the account's
+   * `Register` was in the range, so the receiving side was replayed from
+   * wherever the stream happened to begin. An archive that cold-started above
+   * the account's registration produces exactly this, and it is the failure
+   * REVIEW.md B4 describes — reached by configuration or, on a fixed demo
+   * history, simply by waiting for the RPC retention floor to pass the
+   * contract's deploy ledger.
+   *
+   * Step 7 still catches it: a short receiving side cannot re-commit to the
+   * on-chain point. But it catches it as a *mismatch*, which reads identically
+   * to tampering — the conflation SDK.md §12.3 exists to prevent. So the cause
+   * is named in the detail rather than left for the reader to guess.
+   */
+  const historyReachesRegistration = result.t0Anchor !== "stream-start";
+
+  const checked = verifyAgainstChain(result.spendable, result.receiving, chain);
+  const verification: VerificationResult =
+    checked.ok || historyReachesRegistration
+      ? checked
+      : {
+          ...checked,
+          detail:
+            `${checked.detail}. The served history does not reach this account's Register, ` +
+            "so the likeliest cause is an archive range that begins after the account was " +
+            "created — not a tampered history.",
+        };
 
   const restored: RestoredBalance = {
     registered: true,
@@ -318,6 +324,7 @@ export async function recoverFromSigner(options: RecoverOptions): Promise<Recove
     archiveCoverage: sync.coverage,
     archiveGaps: sync.gaps,
     spendableBlindingUnencodable: result.spendableBlindingUnencodable,
+    historyReachesRegistration,
     sync,
     replay: result,
     chain,
