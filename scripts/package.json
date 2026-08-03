@@ -1,0 +1,21 @@
+{
+  "name": "@sombra/scripts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Node-side substrate for the Sombra demo: deploy a fresh confidential token to testnet and create real on-chain history for it.",
+  "scripts": {
+    "deploy": "tsx deploy.ts",
+    "history": "tsx history.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ctd/sdk": "file:../../stellar-confidential-token-demo/packages/sdk",
+    "@stellar/stellar-sdk": "^14.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.7.0"
+  }
+}

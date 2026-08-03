@@ -3,3 +3,6 @@ dist/
 .env
 *.local
 .DS_Store
+
+# Testnet demo secrets: deployer / primary / secondary account seeds
+.demo-keys.json

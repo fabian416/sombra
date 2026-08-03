@@ -1,0 +1,27 @@
+{
+  "network": "testnet",
+  "rpcUrl": "https://soroban-testnet.stellar.org",
+  "networkPassphrase": "Test SDF Network ; September 2015",
+  "contractId": "CC2Z2B4X4IIFPEHTAAXSZMXVOFUFLDFQ2HVOOQUY3UTFNNKKZPEK4ZAC",
+  "deployLedger": 3949779,
+  "deployerPublic": "GDZIIS3BQKCG4O7UNMMRR47CGTUEOV73XAR3OCFJVYTH2URQROMCR5OR",
+  "primaryAccountPublic": null,
+  "secondaryAccountPublic": null,
+  "txHashes": [],
+  "contracts": {
+    "token": "CC2Z2B4X4IIFPEHTAAXSZMXVOFUFLDFQ2HVOOQUY3UTFNNKKZPEK4ZAC",
+    "verifier": "CARNKFCAY5H6XEJ5CRTJWYLFGPRCWGGU5XLKJGLSK6ENDU7CG7AIDFYT",
+    "auditor": "CAXXGHJQKUXJXKHJM4GNEULVXMRPKZVTUXLBEZVKNZJMBYDAJF5WONFB",
+    "underlying": "CDLZFC3SYJYDZT7K67VZ75HPJVIEUVNIXF47ZG2FB2RMQQVU2HHGCYSC"
+  },
+  "auditorId": 0,
+  "addrF": "0x0ff3348a58b155116391bc73d41fa20c31b61d617fe618abb413287b0891e691",
+  "keyDerivation": {
+    "scheme": "sk = SHA-512(SEP-0053 ed25519 signature over the message below) mod r",
+    "message": "Sombra — confidential key derivation v1\n\nSigning this message derives your confidential spending key.\n\nNetwork: Test SDF Network ; September 2015\nToken contract: CC2Z2B4X4IIFPEHTAAXSZMXVOFUFLDFQ2HVOOQUY3UTFNNKKZPEK4ZAC"
+  },
+  "notes": [
+    "Fresh deployment so the Sombra Archive can hold full history by construction: start ingestion at ledger 3949779.",
+    "History has not been created yet — run `npm run history`."
+  ]
+}
