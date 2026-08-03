@@ -187,7 +187,7 @@ function EclipsePlate() {
         </svg>
 
         <div className="absolute right-0 top-0 w-[9.5rem] text-right">
-          <Eyebrow className="text-ash">The chain sees</Eyebrow>
+          <Eyebrow className="text-ash">The chain stores</Eyebrow>
           <p className="numeral mt-1 text-[12.5px] leading-snug text-ash">
             0x04a1…9f3c
           </p>

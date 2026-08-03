@@ -60,13 +60,7 @@ export function ConfidentialSplitCard({
           </p>
         </div>
 
-        {/* The seam. A thin cyan line, beaded like a particle track. */}
-        <div
-          className="pointer-events-none absolute hidden md:block"
-          aria-hidden
-        />
-
-        {/* Plaintext side */}
+        {/* Plaintext side. The seam is drawn on its leading edge. */}
         <div className="relative border-t border-white/10 px-5 py-6 md:border-l md:border-t-0">
           <Seam />
           <Eyebrow className="text-corona-dim">

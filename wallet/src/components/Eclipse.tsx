@@ -48,16 +48,19 @@ export function Eclipse({
    * The mark needs asymmetry to read as spinning at logo size, so it gets a
    * handful of long uneven streamers instead of the plate's even field.
    */
+  // Lengths stay under (size/2 - disc) so the longest streamer never clips the
+  // viewBox at logo size.
+  const markUnit = size * 0.5 - disc;
   const rays = isMark
     ? [
-        { angle: 8, length: disc * 1.5, width: 1.6, opacity: 0.95 },
-        { angle: 52, length: disc * 0.55, width: 1.1, opacity: 0.5 },
-        { angle: 104, length: disc * 1.1, width: 1.35, opacity: 0.75 },
-        { angle: 143, length: disc * 0.42, width: 0.95, opacity: 0.42 },
-        { angle: 199, length: disc * 1.72, width: 1.7, opacity: 1 },
-        { angle: 248, length: disc * 0.62, width: 1.05, opacity: 0.48 },
-        { angle: 296, length: disc * 1.28, width: 1.45, opacity: 0.82 },
-        { angle: 334, length: disc * 0.5, width: 1, opacity: 0.45 },
+        { angle: 8, length: markUnit * 0.86, width: size * 0.05, opacity: 0.95 },
+        { angle: 52, length: markUnit * 0.3, width: size * 0.032, opacity: 0.5 },
+        { angle: 104, length: markUnit * 0.62, width: size * 0.042, opacity: 0.75 },
+        { angle: 143, length: markUnit * 0.24, width: size * 0.028, opacity: 0.42 },
+        { angle: 199, length: markUnit * 0.98, width: size * 0.055, opacity: 1 },
+        { angle: 248, length: markUnit * 0.34, width: size * 0.03, opacity: 0.48 },
+        { angle: 296, length: markUnit * 0.72, width: size * 0.046, opacity: 0.82 },
+        { angle: 334, length: markUnit * 0.28, width: size * 0.03, opacity: 0.45 },
       ]
     : Array.from({ length: 40 }, (_, i) => {
         // Deterministic pseudo-random so the ray field is stable across renders.
@@ -123,30 +126,28 @@ export function Eclipse({
       <circle cx={c} cy={c} r={glow} fill={`url(#corona-${uid})`} />
 
       {/* The streamers turn; the disc below them does not. */}
-      {(
-        <g
-          filter={isMark ? undefined : `url(#soft-${uid})`}
-          opacity={t}
-          style={{
-            transformOrigin: "center",
-            animation: `corona-drift ${spin}s linear infinite`,
-          }}
-        >
-          {rays.map((ray, i) => (
-            <rect
-              key={i}
-              x={c - ray.width / 2}
-              y={c - disc - ray.length}
-              width={ray.width}
-              height={ray.length}
-              rx={ray.width / 2}
-              fill="#9BEEFF"
-              opacity={ray.opacity}
-              transform={`rotate(${ray.angle} ${c} ${c})`}
-            />
-          ))}
-        </g>
-      )}
+      <g
+        filter={isMark ? undefined : `url(#soft-${uid})`}
+        opacity={t}
+        style={{
+          transformOrigin: "center",
+          animation: `corona-drift ${spin}s linear infinite`,
+        }}
+      >
+        {rays.map((ray, i) => (
+          <rect
+            key={i}
+            x={c - ray.width / 2}
+            y={c - disc - ray.length}
+            width={ray.width}
+            height={ray.length}
+            rx={ray.width / 2}
+            fill="#9BEEFF"
+            opacity={ray.opacity}
+            transform={`rotate(${ray.angle} ${c} ${c})`}
+          />
+        ))}
+      </g>
 
       {/* Hydrogen-alpha prominence: one flare, off-axis, at high intensity only. */}
       {variant === "full" && t > 0.85 && (
