@@ -3,6 +3,7 @@ import { Eclipse } from "../components/Eclipse";
 import { DecryptText } from "../components/DecryptText";
 import { ArchivePanel } from "../components/ArchivePanel";
 import { LandingFeatures } from "../components/LandingFeatures";
+import { LandingStory } from "../components/LandingStory";
 import { SplashCursorLayer } from "../components/SplashCursorLayer";
 import { Button } from "../components/ui";
 import { ARCHIVE_URL, useSombra } from "../state/SombraProvider";
@@ -25,12 +26,13 @@ import { detectFreighter } from "../lib/freighter";
  */
 
 /**
- * The landing, capped at two viewports.
+ * The landing, in four movements.
  *
- * The first is the gate and nothing else: one claim, one action. The second
- * (LandingFeatures) is what a visitor who did not connect on sight scrolls for
- * — four functions, three steps, the same CTA. There is no third; a wallet
- * that needs a long pitch is a wallet nobody trusts with a balance.
+ * The first viewport is the gate and nothing else: one claim, one action.
+ * Below it, for the visitor who didn't connect on sight: the four functions
+ * (LandingFeatures), then the sell (LandingStory) — the seven-day story told
+ * in three panels, the RPC-refusal receipts, numbers a judge can audit, and
+ * one last CTA. Long enough to sell, short enough to stay a wallet.
  */
 export function Connect() {
   const { connect, connecting, connectError, enterPreview } = useSombra();
@@ -152,6 +154,11 @@ export function Connect() {
       </div>
 
       <LandingFeatures
+        onConnect={() => void connect()}
+        connecting={connecting}
+      />
+
+      <LandingStory
         onConnect={() => void connect()}
         connecting={connecting}
       />

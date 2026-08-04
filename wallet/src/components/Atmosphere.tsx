@@ -21,7 +21,7 @@ export function Atmosphere() {
         className="orb -left-40 -top-32 h-[520px] w-[520px]"
         style={{
           background:
-            "radial-gradient(circle, rgba(56,226,255,0.10) 0%, rgba(56,226,255,0.035) 45%, transparent 70%)",
+            "radial-gradient(circle, rgba(56,226,255,0.19) 0%, rgba(56,226,255,0.06) 45%, transparent 70%)",
         }}
         aria-hidden
       />
@@ -29,7 +29,7 @@ export function Atmosphere() {
         className="orb -bottom-48 -right-40 h-[440px] w-[440px]"
         style={{
           background:
-            "radial-gradient(circle, rgba(99,102,241,0.10) 0%, rgba(99,102,241,0.035) 45%, transparent 70%)",
+            "radial-gradient(circle, rgba(99,102,241,0.20) 0%, rgba(99,102,241,0.065) 45%, transparent 70%)",
         }}
         aria-hidden
       />
