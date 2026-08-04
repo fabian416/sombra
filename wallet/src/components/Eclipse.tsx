@@ -8,6 +8,8 @@ interface EclipseProps {
   segments?: { total: number; complete: number };
   /** Seconds per corona revolution. Defaults: 9 below 40px, 48 above. */
   spinSeconds?: number;
+  /** Set false to hold the corona still. Below the fold nothing loops. */
+  animate?: boolean;
   className?: string;
 }
 
@@ -28,6 +30,7 @@ export function Eclipse({
   intensity = 1,
   segments,
   spinSeconds,
+  animate = true,
   className,
 }: EclipseProps) {
   const uid = useId().replace(/:/g, "");
@@ -143,8 +146,10 @@ export function Eclipse({
           opacity={t * 0.85}
           style={{
             transformOrigin: "center",
-            animation: `corona-drift ${spin}s linear infinite`,
-            willChange: "transform",
+            animation: animate
+              ? `corona-drift ${spin}s linear infinite`
+              : undefined,
+            willChange: animate ? "transform" : undefined,
           }}
         >
           {streamers.map((s, i) => (

@@ -228,26 +228,7 @@ function EndpointIcon({ icon }: { icon: Endpoint["icon"] }) {
         </svg>
       );
     case "archive":
-      return (
-        <svg viewBox="0 0 24 24" width={34} height={34} aria-hidden>
-          <ellipse
-            cx="12"
-            cy="6"
-            rx="8"
-            ry="3"
-            fill="none"
-            stroke="#38E2FF"
-            strokeWidth="1.4"
-          />
-          <path
-            d="M4 6v12c0 1.66 3.58 3 8 3s8-1.34 8-3V6M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"
-            fill="none"
-            stroke="#38E2FF"
-            strokeOpacity="0.7"
-            strokeWidth="1.4"
-          />
-        </svg>
-      );
+      return <ArchiveGlyph size={34} />;
     case "recipient":
       return (
         <div className="flex h-9 w-9 items-center justify-center rounded-full border border-limb-bright bg-umbra-lift">
@@ -257,11 +238,35 @@ function EndpointIcon({ icon }: { icon: Endpoint["icon"] }) {
   }
 }
 
+/** The Archive: a database cylinder. Also the landing's "open infra" glyph. */
+export function ArchiveGlyph({ size = 34 }: { size?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
+      <ellipse
+        cx="12"
+        cy="6"
+        rx="8"
+        ry="3"
+        fill="none"
+        stroke="#38E2FF"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M4 6v12c0 1.66 3.58 3 8 3s8-1.34 8-3V6M4 12c0 1.66 3.58 3 8 3s8-1.34 8-3"
+        fill="none"
+        stroke="#38E2FF"
+        strokeOpacity="0.7"
+        strokeWidth="1.4"
+      />
+    </svg>
+  );
+}
+
 /**
  * The official Stellar symbol, drawn inline (public brand asset; standard use
  * for ecosystem projects). Two rotated arcs of the same circle.
  */
-function StellarMark({ size = 24 }: { size?: number }) {
+export function StellarMark({ size = 24 }: { size?: number }) {
   return (
     <svg viewBox="0 0 24 24" width={size} height={size} aria-hidden>
       <g

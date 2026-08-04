@@ -244,6 +244,19 @@
   }
 }
 
+/* The landing's scroll hint. Small enough to read as a breath, not a bounce. */
+@keyframes scroll-hint {
+  0%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.5;
+  }
+  50% {
+    transform: translateY(3px);
+    opacity: 1;
+  }
+}
+
 /* Letter cascade for the Recover phase overlays. */
 @keyframes glyph-in {
   from {
