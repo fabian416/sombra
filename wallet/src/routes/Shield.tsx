@@ -1,17 +1,9 @@
 import { useState } from "react";
 import { ScreenHeader } from "../components/Shell";
-import {
-  Button,
-  Field,
-  Notice,
-  Panel,
-  PanelHeader,
-  Stat,
-  cx,
-} from "../components/ui";
+import { Button, Eyebrow, Notice, Panel, PanelHeader, Stat, cx } from "../components/ui";
 import { useSombra } from "../state/SombraProvider";
 import { useOperationFlow } from "../lib/useOperationFlow";
-import { OperationJourney } from "../components/OperationJourney";
+import { OperationJourney, StellarMark } from "../components/OperationJourney";
 import type { TxReceipt } from "../lib/client";
 import {
   formatAmount,
@@ -21,6 +13,14 @@ import {
   truncateAddress,
 } from "../lib/format";
 
+/**
+ * The pool boundary, composed like the team's bridge: one centered card, the
+ * two sides of the crossing as tiles, the flip control between them switching
+ * the direction, an oversized amount, one gradient action.
+ *
+ * The honest line stays inside the card: a deposit amount is public on chain,
+ * and this screen says so instead of animating an encryption that isn't there.
+ */
 type Direction = "deposit" | "withdraw";
 
 export function Shield() {
@@ -39,6 +39,13 @@ export function Shield() {
   const depositing = direction === "deposit";
   const available = depositing ? publicAmount : (shielded?.amount ?? 0n);
 
+  const flip = () => {
+    setDirection(depositing ? "withdraw" : "deposit");
+    setInvalid(null);
+    setReceipt(null);
+    flow.reset();
+  };
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
     setInvalid(null);
@@ -49,19 +56,19 @@ export function Shield() {
     try {
       parsed = parseAmount(amount);
     } catch (err) {
-      setInvalid(err instanceof Error ? err.message : "Check the amount.");
+      setInvalid(err instanceof Error ? err.message : "Confira o valor.");
       return;
     }
     if (parsed === 0n) {
-      setInvalid("Enter an amount above zero.");
+      setInvalid("Informe um valor acima de zero.");
       return;
     }
 
     const result = await flow.run(
       () => (depositing ? client.shield(parsed) : client.unshield(parsed)),
       {
-        success: depositing ? "Deposit confirmed" : "Withdrawal confirmed",
-        failure: depositing ? "Deposit failed" : "Withdrawal failed",
+        success: depositing ? "Depósito confirmado" : "Saque confirmado",
+        failure: depositing ? "O depósito falhou" : "O saque falhou",
         describe: (r) =>
           `${formatAmount(r.amount)} XLM · ledger ${formatLedger(r.ledger)}`,
       },
@@ -74,6 +81,13 @@ export function Shield() {
     }
   };
 
+  const from = depositing
+    ? { name: "Stellar Testnet", sub: "Saldo público", icon: <StellarMark size={28} /> }
+    : { name: "Pool blindado", sub: "Notas privadas", icon: <PoolGlyph /> };
+  const to = depositing
+    ? { name: "Pool blindado", sub: "Notas privadas", icon: <PoolGlyph /> }
+    : { name: "Stellar Testnet", sub: "Saldo público", icon: <StellarMark size={28} /> };
+
   return (
     <>
       <OperationJourney
@@ -82,98 +96,110 @@ export function Shield() {
         succeeded={!!flow.result}
       />
       <ScreenHeader
-        title="Shielded pool"
-        lede="Deposits and withdrawals are public amounts. What happens between them — who holds what, and who paid whom — is not."
-        action={
-          <div className="flex rounded-full border border-white/15 bg-white/5 p-0.5 backdrop-blur" role="tablist">
-            {(
-              [
-                ["deposit", "Deposit"],
-                ["withdraw", "Withdraw"],
-              ] as Array<[Direction, string]>
-            ).map(([id, label]) => (
-              <button
-                key={id}
-                role="tab"
-                aria-selected={direction === id}
-                onClick={() => {
-                  setDirection(id);
-                  setInvalid(null);
-                  setReceipt(null);
-                  flow.reset();
-                }}
-                className={cx(
-                  "eyebrow rounded-full px-4 py-2 transition-colors",
-                  direction === id
-                    ? "bg-cyan font-semibold text-black"
-                    : "text-ash hover:text-corona-dim",
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        }
+        title="Pool blindado"
+        lede="Depósitos e saques são valores públicos. O que acontece entre eles — quem tem o quê, quem pagou quem — não é."
       />
 
-      <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
-        <Panel>
-          <PanelHeader
-            title={depositing ? "Deposit into the pool" : "Withdraw from the pool"}
-            layer="SPP"
-            note={
-              depositing
-                ? "Public XLM becomes notes only you can spend."
-                : "Notes are burned and public XLM comes back out."
-            }
-          />
-          <form onSubmit={submit} className="space-y-5 px-5 py-5">
-            {/* No clear-to-cipher sweep here: the amount crossing the pool
-                boundary is public on chain, and animating it as encryption
-                would misrepresent what the ledger records. */}
-            <Notice>
+      <div className="mx-auto w-full max-w-[520px]">
+        <form onSubmit={submit} className="panel glow-soft overflow-hidden">
+          <div className="relative grid grid-cols-2 gap-px bg-white/10">
+            <SideTile label="De" side={from} />
+            <SideTile label="Para" side={to} />
+            <button
+              type="button"
+              onClick={flip}
+              aria-label="Inverter a direção"
+              className="absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-umbra text-cyan transition-all hover:border-cyan/50 hover:shadow-[0_0_18px_rgba(56,226,255,0.4)]"
+            >
+              ⇄
+            </button>
+          </div>
+
+          <div className="border-t border-white/10 px-6 pb-5 pt-6">
+            <div className="flex items-baseline justify-between gap-4">
+              <Eyebrow>Valor</Eyebrow>
+              <button
+                type="button"
+                onClick={() =>
+                  setAmount(formatAmount(available, { group: false }))
+                }
+                className="eyebrow text-cyan/80 transition-colors hover:text-cyan"
+              >
+                MAX
+              </button>
+            </div>
+            <div className="mt-2 flex items-baseline gap-3">
+              <input
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="0.00"
+                inputMode="decimal"
+                className="numeral w-full border-0 bg-transparent p-0 text-[38px] leading-none text-corona outline-none placeholder:text-ash/40"
+              />
+              <span className="eyebrow shrink-0 text-ash">XLM</span>
+            </div>
+            <p className="numeral mt-2.5 text-[12px] text-ash">
+              {formatAmount(available)} XLM disponível
+            </p>
+          </div>
+
+          {/* The honest line. No clear-to-cipher sweep on this boundary: the
+              crossing amount is public on chain and pretending otherwise in
+              front of the spec's authors would cost more than it looks. */}
+          <div className="border-t border-white/10 bg-white/[0.03] px-6 py-3.5">
+            <p className="text-[12px] leading-relaxed text-ash">
               {depositing
-                ? "This deposit is public; what follows is not."
-                : "This withdrawal is public; what preceded it is not."}
-            </Notice>
-            <Field
-              label="Amount"
-              placeholder="0.0000000"
-              inputMode="decimal"
-              value={amount}
-              suffix="XLM"
-              onChange={(e) => setAmount(e.target.value)}
-              hint={`${formatAmount(available)} available`}
-            />
+                ? "Este depósito é público — o que acontece depois dele não é."
+                : "Este saque é público — o que veio antes dele não é."}
+            </p>
+          </div>
 
-            {error && <Notice tone="warn">{error}</Notice>}
+          {error && (
+            <div className="border-t border-white/10 px-6 py-4">
+              <Notice tone="warn">{error}</Notice>
+            </div>
+          )}
 
-            <Button type="submit" variant="primary" busy={busy}>
-              {depositing ? "Deposit" : "Withdraw"}
+          <div className="border-t border-white/10 px-6 py-5">
+            <Button
+              type="submit"
+              variant="primary"
+              busy={busy}
+              className="w-full py-3.5 text-[14.5px]"
+            >
+              {busy
+                ? depositing
+                  ? "Depositando"
+                  : "Sacando"
+                : depositing
+                  ? "Depositar →"
+                  : "Sacar →"}
             </Button>
+          </div>
+        </form>
 
-            {receipt && (
-              <Notice tone="good">
-                {depositing
-                  ? `Deposited ${formatAmount(receipt.amount)} XLM. New notes are in the tree.`
-                  : `Withdrew ${formatAmount(receipt.amount)} XLM to your public balance.`}
-                <span className="numeral mt-1.5 block text-[12px] text-cyan/75">
-                  {truncateAddress(receipt.hash, 10)} · ledger{" "}
-                  {formatLedger(receipt.ledger)}
-                </span>
-              </Notice>
-            )}
-          </form>
-        </Panel>
+        {receipt && (
+          <div className="mt-4">
+            <Notice tone="good">
+              {depositing
+                ? `Depositou ${formatAmount(receipt.amount)} XLM. Novas notas estão na árvore.`
+                : `Sacou ${formatAmount(receipt.amount)} XLM para o saldo público.`}
+              <span className="numeral mt-1.5 block text-[12px] text-cyan/75">
+                {truncateAddress(receipt.hash, 10)} · ledger{" "}
+                {formatLedger(receipt.ledger)}
+              </span>
+            </Notice>
+          </div>
+        )}
 
-        <div className="space-y-5">
+        <div className="mt-6 grid gap-5 sm:grid-cols-2">
           <Panel>
-            <PanelHeader title="Pool position" layer="SPP" />
+            <PanelHeader title="Posição no pool" layer="SPP" />
             <div className="space-y-4 px-5 py-5">
               {shielded ? (
                 <>
                   <div className="flex flex-wrap items-baseline gap-2.5">
-                    <span className="numeral text-[26px] leading-none text-pool">
+                    <span className="numeral text-[24px] leading-none text-pool">
                       {formatAmount(shielded.amount)}
                     </span>
                     <span className="eyebrow text-ash">
@@ -181,13 +207,13 @@ export function Shield() {
                     </span>
                   </div>
                   <Stat
-                    label="Notes"
+                    label="Notas"
                     value={formatCount(shielded.noteCount)}
                     tone="ash"
-                    sub="A spend consumes up to two notes and writes two back."
+                    sub="Um gasto consome até duas notas e grava duas de volta."
                   />
                   <div>
-                    <div className="eyebrow">Pool contract</div>
+                    <div className="eyebrow">Contrato do pool</div>
                     <p className="numeral mt-1.5 text-[12.5px] text-ash">
                       {truncateAddress(shielded.poolContractId, 8)}
                     </p>
@@ -200,15 +226,17 @@ export function Shield() {
           </Panel>
 
           <Panel>
-            <PanelHeader title="What an observer learns" />
+            <PanelHeader title="O que um observador aprende" />
             <ul className="divide-y divide-limb text-[13px]">
-              {[
-                ["That a deposit happened", "Yes"],
-                ["The deposit amount", "Yes"],
-                ["Which note is yours", "No"],
-                ["Who you paid inside the pool", "No"],
-                ["Your pool balance", "No"],
-              ].map(([question, answer]) => (
+              {(
+                [
+                  ["Que houve um depósito", "Sim"],
+                  ["O valor do depósito", "Sim"],
+                  ["Qual nota é sua", "Não"],
+                  ["Quem você pagou no pool", "Não"],
+                  ["Seu saldo no pool", "Não"],
+                ] as const
+              ).map(([question, answer]) => (
                 <li
                   key={question}
                   className="flex items-center justify-between gap-4 px-5 py-2.5"
@@ -217,7 +245,7 @@ export function Shield() {
                   <span
                     className={cx(
                       "eyebrow",
-                      answer === "Yes" ? "text-cyan" : "text-pool",
+                      answer === "Sim" ? "text-cyan" : "text-pool",
                     )}
                   >
                     {answer}
@@ -229,5 +257,53 @@ export function Shield() {
         </div>
       </div>
     </>
+  );
+}
+
+function SideTile({
+  label,
+  side,
+}: {
+  label: string;
+  side: { name: string; sub: string; icon: React.ReactNode };
+}) {
+  return (
+    <div className="bg-umbra px-6 py-5">
+      <Eyebrow>{label}</Eyebrow>
+      <div className="mt-2.5 flex items-center gap-3">
+        <span className="flex h-8 w-8 items-center justify-center">
+          {side.icon}
+        </span>
+        <div className="min-w-0">
+          <div className="numeral text-[15.5px] font-semibold text-corona">
+            {side.name}
+          </div>
+          <span className="mt-0.5 block text-[11.5px] text-ash">{side.sub}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PoolGlyph() {
+  return (
+    <svg viewBox="0 0 24 24" width={28} height={28} aria-hidden>
+      <circle
+        cx="12"
+        cy="12"
+        r="9.2"
+        fill="none"
+        stroke="#38E2FF"
+        strokeOpacity="0.55"
+        strokeWidth="1.4"
+      />
+      <path
+        d="M6 11.2c2-1.5 4-1.5 6 0s4 1.5 6 0M6 14.6c2-1.5 4-1.5 6 0s4 1.5 6 0"
+        fill="none"
+        stroke="#38E2FF"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
   );
 }

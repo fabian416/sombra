@@ -4,7 +4,7 @@ import {
   Button,
   CopyLine,
   Eyebrow,
-  Field,
+
   Notice,
   Panel,
   PanelHeader,
@@ -13,7 +13,7 @@ import {
 } from "../components/ui";
 import { useSombra } from "../state/SombraProvider";
 import { useOperationFlow } from "../lib/useOperationFlow";
-import { CipherSweep } from "../components/CipherSweep";
+import { Eclipse } from "../components/Eclipse";
 import { OperationJourney } from "../components/OperationJourney";
 import type { ReceiveInfo, TxReceipt } from "../lib/client";
 import {
@@ -32,8 +32,8 @@ export function SendReceive() {
   return (
     <>
       <ScreenHeader
-        title="Send & receive"
-        lede="Confidential Token transfers. The recipient and the ledger position are public; the amount is not."
+        title="Enviar e receber"
+        lede="Transferências de Confidential Token. O destinatário e a posição no ledger são públicos; o valor não."
         action={<Tabs value={tab} onChange={setTab} />}
       />
       {tab === "send" ? <SendForm /> : <ReceivePanel />}
@@ -49,8 +49,8 @@ function Tabs({
   onChange: (t: Tab) => void;
 }) {
   const options: Array<{ id: Tab; label: string }> = [
-    { id: "send", label: "Send" },
-    { id: "receive", label: "Receive" },
+    { id: "send", label: "Enviar" },
+    { id: "receive", label: "Receber" },
   ];
   return (
     <div className="flex rounded-full border border-white/15 bg-white/5 p-0.5 backdrop-blur" role="tablist">
@@ -127,105 +127,150 @@ function SendForm() {
   };
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+    <div className="mx-auto w-full max-w-[520px]">
       <OperationJourney op="send" active={sending} succeeded={!!receipt} />
-      <Panel>
-        <PanelHeader title="Private transfer" layer="CT" />
-        <CipherSweep active={sending} label="Encrypting">
-        <form onSubmit={submit} className="space-y-5 px-5 py-5">
-          <Field
-            label="Recipient"
-            placeholder="G…"
-            value={to}
-            spellCheck={false}
-            autoComplete="off"
-            onChange={(e) => setTo(e.target.value)}
-            hint="Must be a registered CT account"
-          />
-          <Field
-            label="Amount"
-            placeholder="0.0000000"
-            inputMode="decimal"
-            value={amount}
-            suffix="XLM"
-            onChange={(e) => setAmount(e.target.value)}
-            hint={`${formatAmount(spendable)} spendable`}
-          />
 
-          {error && <Notice tone="warn">{error}</Notice>}
-
-          <div className="flex flex-wrap items-center gap-3">
-            <Button
-              type="submit"
-              variant="primary"
-              busy={sending}
-              disabled={!hasLocalState}
-            >
-              Send privately
-            </Button>
-            {amount && !error && (
-              <button
-                type="button"
-                onClick={() => setAmount(formatAmount(spendable, { group: false }))}
-                className="eyebrow text-ash underline decoration-limb-bright underline-offset-4 hover:text-corona"
-              >
-                Send everything
-              </button>
-            )}
+      <form onSubmit={submit} className="panel glow-soft overflow-hidden">
+        {/* The two ends of the transfer, like the bridge composes them. */}
+        <div className="grid grid-cols-[0.85fr_1.15fr] gap-px bg-white/10">
+          <div className="bg-umbra px-6 py-5">
+            <Eyebrow>De</Eyebrow>
+            <div className="mt-2.5 flex items-center gap-3">
+              <Eclipse size={30} intensity={0.9} spinSeconds={40} />
+              <div className="min-w-0">
+                <div className="numeral text-[15.5px] font-semibold text-corona">
+                  Sua carteira
+                </div>
+                <span className="mt-0.5 block text-[11.5px] text-ash">
+                  Saldo confidencial
+                </span>
+              </div>
+            </div>
           </div>
+          <div className="bg-umbra px-6 py-5">
+            <Eyebrow>Para</Eyebrow>
+            <input
+              value={to}
+              onChange={(e) => setTo(e.target.value)}
+              placeholder="G…"
+              spellCheck={false}
+              autoComplete="off"
+              className="numeral mt-2.5 w-full border-0 bg-transparent p-0 text-[15.5px] font-semibold text-corona outline-none placeholder:text-ash/40"
+            />
+            <span className="mt-0.5 block text-[11.5px] text-ash">
+              Conta CT registrada
+            </span>
+          </div>
+        </div>
 
-          {!hasLocalState && (
-            <Notice tone="warn">
-              Recover your account before sending — the openings needed to build
-              a proof are missing on this device.
-            </Notice>
-          )}
-
-          {receipt && (
-            <Notice tone="good">
-              Sent {formatAmount(receipt.amount)} XLM. The ledger recorded a
-              transfer with no amount attached.
-              <span className="numeral mt-1.5 block text-[12px] text-cyan/75">
-                {truncateAddress(receipt.hash, 10)} · ledger{" "}
-                {formatLedger(receipt.ledger)}
-              </span>
-            </Notice>
-          )}
-        </form>
-        </CipherSweep>
-      </Panel>
-
-      <Panel className="h-fit">
-        <PanelHeader title="What lands on chain" />
-        <ul className="divide-y divide-limb text-[13px]">
-          {[
-            ["Sender", "Public"],
-            ["Recipient", "Public"],
-            ["Amount", "Encrypted"],
-            ["Your new balance", "A commitment"],
-            ["Auditor copy", "Encrypted to the auditor key"],
-          ].map(([field, disclosure]) => (
-            <li
-              key={field}
-              className="flex items-center justify-between gap-4 px-5 py-3"
+        <div className="border-t border-white/10 px-6 pb-5 pt-6">
+          <div className="flex items-baseline justify-between gap-4">
+            <Eyebrow>Valor</Eyebrow>
+            <button
+              type="button"
+              onClick={() =>
+                setAmount(formatAmount(spendable, { group: false }))
+              }
+              className="eyebrow text-cyan/80 transition-colors hover:text-cyan"
             >
-              <span className="text-ash">{field}</span>
-              <span
-                className={cx(
-                  "eyebrow",
-                  disclosure === "Public" ? "text-cyan" : "text-corona-dim",
-                )}
+              MAX
+            </button>
+          </div>
+          <div className="mt-2 flex items-baseline gap-3">
+            <input
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+              inputMode="decimal"
+              className="numeral w-full border-0 bg-transparent p-0 text-[38px] leading-none text-corona outline-none placeholder:text-ash/40"
+            />
+            <span className="eyebrow shrink-0 text-ash">XLM</span>
+          </div>
+          <p className="numeral mt-2.5 text-[12px] text-ash">
+            {formatAmount(spendable)} XLM disponível para gastar
+          </p>
+        </div>
+
+        <div className="border-t border-white/10 bg-white/[0.03] px-6 py-3.5">
+          <p className="text-[12px] leading-relaxed text-ash">
+            Endereços visíveis, valor oculto — apenas um compromisso viaja.
+          </p>
+        </div>
+
+        {error && (
+          <div className="border-t border-white/10 px-6 py-4">
+            <Notice tone="warn">{error}</Notice>
+          </div>
+        )}
+
+        {!hasLocalState && (
+          <div className="border-t border-white/10 px-6 py-4">
+            <Notice tone="warn">
+              Recupere a sua conta antes de enviar — as aberturas necessárias
+              para gerar a prova não estão neste dispositivo.
+            </Notice>
+          </div>
+        )}
+
+        <div className="border-t border-white/10 px-6 py-5">
+          <Button
+            type="submit"
+            variant="primary"
+            busy={sending}
+            disabled={!hasLocalState}
+            className="w-full py-3.5 text-[14.5px]"
+          >
+            {sending ? "Enviando em sigilo" : "Enviar em sigilo →"}
+          </Button>
+        </div>
+      </form>
+
+      {receipt && (
+        <div className="mt-4">
+          <Notice tone="good">
+            Enviou {formatAmount(receipt.amount)} XLM. O ledger registrou uma
+            transferência sem valor anexado.
+            <span className="numeral mt-1.5 block text-[12px] text-cyan/75">
+              {truncateAddress(receipt.hash, 10)} · ledger{" "}
+              {formatLedger(receipt.ledger)}
+            </span>
+          </Notice>
+        </div>
+      )}
+
+      <div className="mt-6">
+        <Panel>
+          <PanelHeader title="O que fica na chain" />
+          <ul className="divide-y divide-limb text-[13px]">
+            {[
+              ["Remetente", "Público"],
+              ["Destinatário", "Público"],
+              ["Valor", "Cifrado"],
+              ["Seu novo saldo", "Um compromisso"],
+              ["Cópia do auditor", "Cifrada para a chave do auditor"],
+            ].map(([field, disclosure]) => (
+              <li
+                key={field}
+                className="flex items-center justify-between gap-4 px-5 py-3"
               >
-                {disclosure}
-              </span>
-            </li>
-          ))}
-        </ul>
-        <p className="border-t border-limb px-5 py-4 text-[12.5px] leading-relaxed text-ash">
-          The transfer carries the opening encrypted to the recipient's viewing
-          key, so only they can spend what arrives.
-        </p>
-      </Panel>
+                <span className="text-ash">{field}</span>
+                <span
+                  className={cx(
+                    "eyebrow",
+                    disclosure === "Público" ? "text-cyan" : "text-corona-dim",
+                  )}
+                >
+                  {disclosure}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <p className="border-t border-limb px-5 py-4 text-[12.5px] leading-relaxed text-ash">
+            A transferência carrega a abertura cifrada para a chave de
+            visualização do destinatário — só ele consegue gastar o que chega.
+          </p>
+        </Panel>
+      </div>
     </div>
   );
 }
