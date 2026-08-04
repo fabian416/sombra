@@ -67,7 +67,9 @@ export function useGlyphScramble({
   pulse: (at?: number) => void;
 } {
   const reduced = prefersReducedMotion();
-  const instant = !run || (reduced && mode === "resolve");
+  // Reduced motion silences BOTH modes. Hold-mode consumers pass a cipher
+  // string as `text`, so the instant render is still cipher — just static.
+  const instant = !run || reduced;
 
   const [chars, setChars] = useState<ScrambledChar[]>(() =>
     text.split("").map((ch) => ({ ch, resolved: true })),

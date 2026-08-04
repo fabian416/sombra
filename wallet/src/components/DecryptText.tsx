@@ -60,19 +60,33 @@ export function DecryptText({
       aria-label={text}
       onMouseEnter={ambient ? () => pulse() : undefined}
     >
-      {chars.map((c, i) => (
-        <span
-          key={i}
-          aria-hidden
-          className={cx(
-            !c.resolved &&
-              (cipherClassName ??
-                "font-mono text-cyan [text-shadow:0_0_12px_rgba(56,226,255,0.75)]"),
-          )}
-        >
-          {c.ch}
-        </span>
-      ))}
+      {chars.map((c, i) => {
+        const real = text[i];
+        // Whitespace never scrambles and never needs width games.
+        if (c.resolved && c.ch === real) {
+          return (
+            <span key={i} aria-hidden>
+              {c.ch}
+            </span>
+          );
+        }
+        // Reserve the FINAL character's width and overlay the cipher glyph, so
+        // the line never reflows while glyphs (a different face) cycle.
+        return (
+          <span key={i} aria-hidden className="relative inline-block">
+            <span className="invisible">{real}</span>
+            <span
+              className={cx(
+                "absolute inset-0 flex items-center justify-center",
+                cipherClassName ??
+                  "font-mono text-cyan [text-shadow:0_0_12px_rgba(56,226,255,0.75)]",
+              )}
+            >
+              {c.ch}
+            </span>
+          </span>
+        );
+      })}
     </Tag>
   );
 }

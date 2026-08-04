@@ -95,7 +95,7 @@ function SendForm() {
 
     if (!isStellarAddress(to)) {
       setInvalid(
-        "That isn't a Stellar public key. It starts with G and is 56 characters.",
+        "Isso não é uma chave pública Stellar. Ela começa com G e tem 56 caracteres.",
       );
       return;
     }
@@ -104,17 +104,17 @@ function SendForm() {
     try {
       parsed = parseAmount(amount);
     } catch (err) {
-      setInvalid(err instanceof Error ? err.message : "Check the amount.");
+      setInvalid(err instanceof Error ? err.message : "Confira o valor.");
       return;
     }
     if (parsed === 0n) {
-      setInvalid("Enter an amount above zero.");
+      setInvalid("Informe um valor acima de zero.");
       return;
     }
 
     const result = await flow.run(() => client.privateSend(to.trim(), parsed), {
-      success: "Transfer sent",
-      failure: "Transfer failed",
+      success: "Transferência enviada",
+      failure: "Falha na transferência",
       describe: (r) =>
         `${formatAmount(r.amount)} XLM · ledger ${formatLedger(r.ledger)}`,
     });
@@ -293,16 +293,16 @@ function ReceivePanel() {
     <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
       <Panel>
         <PanelHeader
-          title="Your receiving details"
+          title="Seus dados de recebimento"
           layer="CT"
-          note="Share these to be paid confidentially."
+          note="Compartilhe para receber pagamentos em sigilo."
         />
         <div className="space-y-5 px-5 py-5">
           <div>
-            <Eyebrow>Stellar address</Eyebrow>
+            <Eyebrow>Endereço Stellar</Eyebrow>
             <div className="mt-2">
               {info ? (
-                <CopyLine value={info.address} label="address" />
+                <CopyLine value={info.address} label="endereço" />
               ) : (
                 <div className="h-11 bg-limb/50" aria-hidden />
               )}
@@ -310,30 +310,30 @@ function ReceivePanel() {
           </div>
 
           <div>
-            <Eyebrow>Viewing public key</Eyebrow>
+            <Eyebrow>Chave pública de visualização</Eyebrow>
             <div className="mt-2">
               {info ? (
                 <CopyLine
                   value={info.viewingPublicKey}
                   display={truncateAddress(info.viewingPublicKey, 16)}
-                  label="viewing key"
+                  label="chave de visualização"
                 />
               ) : (
                 <div className="h-11 bg-limb/50" aria-hidden />
               )}
             </div>
             <p className="mt-2 text-[12.5px] leading-relaxed text-ash">
-              Senders encrypt the amount to this key. It reveals incoming
-              amounts to whoever holds it — share it only with an auditor you
-              intend to give that access.
+              Quem envia cifra o valor para esta chave. Ela revela os valores
+              recebidos a quem a possuir — compartilhe apenas com um auditor a
+              quem você queira dar esse acesso.
             </p>
           </div>
 
           {info && (
             <div className="flex flex-wrap gap-x-8 gap-y-4 border-t border-limb pt-4">
               <Stat
-                label="Registration"
-                value={info.registered ? "Registered" : "Not registered"}
+                label="Registro"
+                value={info.registered ? "Registrada" : "Não registrada"}
                 tone={info.registered ? "cyan" : "ash"}
               />
               <Stat label="Auditor" value={`#${info.auditorId}`} tone="ash" />
@@ -343,16 +343,17 @@ function ReceivePanel() {
       </Panel>
 
       <Panel className="h-fit">
-        <PanelHeader title="Where funds land" />
+        <PanelHeader title="Onde os fundos chegam" />
         <div className="space-y-4 px-5 py-5 text-[13px] leading-relaxed text-ash">
           <p>
-            Incoming transfers go to your <strong className="text-corona-dim">receiving</strong>{" "}
-            balance, not straight to spendable. That keeps a sender from
-            interfering with a transfer you are building at the same moment.
+            Transferências recebidas vão para o seu saldo{" "}
+            <strong className="text-corona-dim">de recebimento</strong>, não
+            direto para o gastável. Isso impede que um remetente interfira numa
+            transferência que você esteja montando no mesmo momento.
           </p>
           <p>
-            Fold receiving into spendable from the Balances screen when you want
-            to use what arrived.
+            Incorpore o recebido ao gastável na tela de Saldos quando quiser
+            usar o que chegou.
           </p>
         </div>
       </Panel>

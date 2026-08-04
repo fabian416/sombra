@@ -111,17 +111,16 @@ export function Swap() {
         lede="Troque de dentro do pool sem amarrar a operação ao seu histórico. Os fundos saem para um endereço sem passado, trocam em público e voltam direto."
       />
 
-      <div className="mb-6">
-        <Notice>
-          <strong className="font-semibold text-corona-dim">
-            Prévia do fluxo.
-          </strong>{" "}
-          A rota abaixo é o design que o Sombra implementa; a execução aqui roda
-          contra o cliente de demonstração.
-        </Notice>
-      </div>
-
       <div className="mx-auto w-full max-w-[520px]">
+        <div className="mb-6">
+          <Notice>
+            <strong className="font-semibold text-corona-dim">
+              Prévia do fluxo.
+            </strong>{" "}
+            A rota abaixo é o design que o Sombra implementa; a execução aqui
+            roda contra o cliente de demonstração.
+          </Notice>
+        </div>
         <form onSubmit={submit} className="panel glow-soft overflow-hidden">
           {/* Origin / destination tiles with the flip between them. */}
           <div className="relative grid grid-cols-2 gap-px bg-white/10">
@@ -176,8 +175,7 @@ export function Swap() {
               <span className="eyebrow shrink-0 text-ash">{fromAsset}</span>
             </div>
             <p className="numeral mt-2.5 text-[12px] text-ash">
-              {formatAmount(shielded)} {fromAsset === "XLM" ? "XLM" : "no pool"}{" "}
-              disponível no pool
+              {formatAmount(shielded)} {fromAsset} disponível no pool
             </p>
           </div>
 
@@ -299,7 +297,7 @@ function AssetTile({
           <select
             value={asset}
             onChange={(e) => onChange(e.target.value as Asset)}
-            className="numeral w-full appearance-none border-0 bg-transparent p-0 text-[17px] font-semibold text-corona outline-none"
+            className="numeral w-full appearance-none border-0 bg-transparent p-0 text-[15.5px] font-semibold text-corona outline-none"
           >
             {ASSETS.map((a) => (
               <option key={a} value={a} className="bg-penumbra text-corona">

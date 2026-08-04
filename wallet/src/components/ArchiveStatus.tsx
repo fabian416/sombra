@@ -101,8 +101,10 @@ export function ArchiveStatus() {
               status === "checking" && "bg-ash/50",
             )}
             style={
-              status === "up" && !lagging
-                ? { animation: "corona-breathe 3.2s ease-in-out infinite" }
+              // Motion only while genuinely busy. A healthy archive is steady
+              // state — the solid dot says everything a pulse would.
+              status === "checking"
+                ? { animation: "corona-breathe 1.6s ease-in-out infinite" }
                 : undefined
             }
             aria-hidden

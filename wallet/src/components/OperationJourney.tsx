@@ -346,26 +346,30 @@ function Traveler({ index, spec }: { index: number; spec: OpSpec }) {
       : clearFace;
 
   return (
+    // A full-width, zero-height track carrying the dot at its left edge.
+    // Animating the track's transform (not `left`) keeps the whole journey on
+    // the compositor: three travelers cost zero layout work per frame.
     <span
-      className="absolute top-1/2 h-5 w-5 -translate-y-1/2"
+      className="absolute left-0 right-0 top-1/2 h-0"
       style={{
         animation: `sj-travel ${dur}s linear ${delay}s infinite`,
-        left: "-20px",
         opacity: 0,
       }}
       aria-hidden
     >
-      <span
-        className="sj-a absolute inset-0"
-        style={{ animationDuration: `${dur}s`, animationDelay: `${delay}s` }}
-      >
-        {before}
-      </span>
-      <span
-        className="sj-b absolute inset-0"
-        style={{ animationDuration: `${dur}s`, animationDelay: `${delay}s` }}
-      >
-        {after}
+      <span className="absolute -top-2.5 h-5 w-5" style={{ left: "-10px" }}>
+        <span
+          className="sj-a absolute inset-0"
+          style={{ animationDuration: `${dur}s`, animationDelay: `${delay}s` }}
+        >
+          {before}
+        </span>
+        <span
+          className="sj-b absolute inset-0"
+          style={{ animationDuration: `${dur}s`, animationDelay: `${delay}s` }}
+        >
+          {after}
+        </span>
       </span>
     </span>
   );
@@ -408,10 +412,10 @@ function Settle({ spec }: { spec: OpSpec }) {
 
 const JOURNEY_CSS = `
 @keyframes sj-travel {
-  0% { left: -20px; opacity: 0; }
+  0% { transform: translateX(0); opacity: 0; }
   6% { opacity: 1; }
   94% { opacity: 1; }
-  100% { left: calc(100% + 0px); opacity: 0; }
+  100% { transform: translateX(100%); opacity: 0; }
 }
 @keyframes sj-faceA {
   0%, 49% { opacity: 1; }

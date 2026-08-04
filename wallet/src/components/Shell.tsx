@@ -73,11 +73,11 @@ export function Shell() {
               {truncateAddress(identity.address, 6)}
             </div>
             <div className="mt-2 flex flex-wrap gap-1.5">
-              <span className="eyebrow inline-flex border border-limb px-1.5 py-0.5 text-ash">
+              <span className="eyebrow inline-flex rounded-full border border-limb px-2 py-0.5 text-ash">
                 {identity.network}
               </span>
               {preview && (
-                <span className="eyebrow inline-flex border border-limb-bright px-1.5 py-0.5 text-ash">
+                <span className="eyebrow inline-flex rounded-full border border-limb-bright px-2 py-0.5 text-ash">
                   Dados de demonstração
                 </span>
               )}
@@ -96,7 +96,7 @@ export function Shell() {
         <main className="flex-1 px-6 py-8 sm:px-8 lg:py-10">
           <div className="mx-auto w-full max-w-[900px]">
             {identity && identity.network !== "TESTNET" && (
-              <div className="mb-6 border border-chroma/40 bg-chroma/[0.06] px-4 py-3 text-[13px] leading-relaxed text-chroma">
+              <div className="mb-6 rounded-xl border border-chroma/40 bg-chroma/[0.06] px-4 py-3 text-[13px] leading-relaxed text-chroma backdrop-blur">
                 O Freighter está em{" "}
                 <span className="numeral">{identity.network}</span>. Os contratos
                 do Sombra estão na Testnet — troque de rede no Freighter antes de
