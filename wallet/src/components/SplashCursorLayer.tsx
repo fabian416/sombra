@@ -20,6 +20,10 @@ export function SplashCursorLayer() {
   const [armed, setArmed] = useState(false);
 
   useEffect(() => {
+    // Opt-in only. The simulation repeatedly crashed the GPU process on real
+    // hardware (whole-tab white-out), and no accent is worth the page. Set
+    // VITE_SPLASH_CURSOR=1 to arm it on machines known to handle it.
+    if (import.meta.env.VITE_SPLASH_CURSOR !== "1") return;
     const fine = window.matchMedia("(pointer: fine)").matches;
     const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (!fine || still) return;
