@@ -111,7 +111,7 @@ export function ArchiveStatus() {
         </span>
 
         {status === "checking" && (
-          <span className="eyebrow text-ash">Contacting</span>
+          <span className="eyebrow text-ash">Consultando</span>
         )}
 
         {status === "up" && (
@@ -119,7 +119,7 @@ export function ArchiveStatus() {
             {health?.ingestedThrough !== null &&
               health?.ingestedThrough !== undefined && (
                 <span className="numeral text-[12px] text-ash">
-                  ingested through ledger{" "}
+                  ingerido até o ledger{" "}
                   <span className="text-corona-dim">
                     {formatLedger(health.ingestedThrough)}
                   </span>
@@ -127,7 +127,7 @@ export function ArchiveStatus() {
               )}
             {health?.lag !== null && health?.lag !== undefined && (
               <span className="numeral text-[12px] text-ash">
-                lag{" "}
+                atraso{" "}
                 <span className={lagging ? "text-chroma" : "text-corona-dim"}>
                   {formatLedger(health.lag)}
                 </span>{" "}
@@ -137,7 +137,7 @@ export function ArchiveStatus() {
             {health?.retainsFrom !== null &&
               health?.retainsFrom !== undefined && (
                 <span className="numeral text-[12px] text-ash">
-                  retains from{" "}
+                  retém desde{" "}
                   <span className="text-corona-dim">
                     {formatLedger(health.retainsFrom)}
                   </span>
@@ -145,20 +145,20 @@ export function ArchiveStatus() {
               )}
             {health?.holdsFullHistory === false && (
               <span className="text-[12px] text-chroma">
-                Gaps below the tip — recovery may be refused as incomplete.
+                Lacunas abaixo do topo — a recuperação pode ser recusada.
               </span>
             )}
             {health?.holdsFullHistory === true && (
-              <span className="eyebrow text-cyan">Full history</span>
+              <span className="eyebrow text-cyan">Histórico completo</span>
             )}
           </>
         )}
 
         {status === "down" && (
           <span className="text-[12px] text-ash">
-            Not reachable at{" "}
-            <span className="numeral text-ash/80">{ARCHIVE_URL}</span>. Recovery
-            needs it — start the archive service.
+            Fora de alcance em{" "}
+            <span className="numeral text-ash/80">{ARCHIVE_URL}</span>. A recuperação
+            depende dele — inicie o serviço do Archive.
           </span>
         )}
       </div>

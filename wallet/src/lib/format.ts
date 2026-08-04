@@ -6,12 +6,18 @@ export const DECIMALS = 7;
 /** "1240.5" -> 12405000000n. Throws on anything that is not a clean amount. */
 export function parseAmount(input: string): Stroops {
   const trimmed = input.trim();
-  if (!/^\d*(\.\d*)?$/.test(trimmed) || trimmed === "" || trimmed === ".") {
-    throw new Error("Enter an amount using digits and one decimal point.");
+  // Accept both separators: pt-BR keyboards produce a comma.
+  const normalised = trimmed.replace(",", ".");
+  if (
+    !/^\d*(\.\d*)?$/.test(normalised) ||
+    normalised === "" ||
+    normalised === "."
+  ) {
+    throw new Error("Use apenas dígitos e um separador decimal.");
   }
-  const [whole, frac = ""] = trimmed.split(".");
+  const [whole, frac = ""] = normalised.split(".");
   if (frac.length > DECIMALS) {
-    throw new Error(`XLM carries ${DECIMALS} decimal places.`);
+    throw new Error(`XLM tem ${DECIMALS} casas decimais.`);
   }
   return (
     BigInt(whole || "0") * STROOPS_PER_XLM +
@@ -29,17 +35,18 @@ export function formatAmount(
   const abs = negative ? -amount : amount;
   const whole = abs / STROOPS_PER_XLM;
   const frac = (abs % STROOPS_PER_XLM).toString().padStart(DECIMALS, "0");
+  // pt-BR: dot groups thousands, comma separates decimals.
   const wholeStr = group
-    ? whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    ? whole.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".")
     : whole.toString();
-  const fracStr = decimals > 0 ? `.${frac.slice(0, decimals)}` : "";
+  const fracStr = decimals > 0 ? `,${frac.slice(0, decimals)}` : "";
   return `${negative ? "-" : ""}${wholeStr}${fracStr}`;
 }
 
 /** Splits an amount so the UI can de-emphasise the fractional tail. */
 export function splitAmount(amount: Stroops): { whole: string; frac: string } {
   const formatted = formatAmount(amount);
-  const [whole, frac = ""] = formatted.split(".");
+  const [whole, frac = ""] = formatted.split(",");
   return { whole, frac };
 }
 
@@ -54,9 +61,9 @@ export function isStellarAddress(value: string): boolean {
 }
 
 export function formatCount(n: number): string {
-  return n.toLocaleString("en-US");
+  return n.toLocaleString("pt-BR");
 }
 
 export function formatLedger(n: number): string {
-  return n.toLocaleString("en-US");
+  return n.toLocaleString("pt-BR");
 }

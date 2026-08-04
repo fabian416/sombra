@@ -10,6 +10,7 @@ import {
   cx,
 } from "../components/ui";
 import { useSombra } from "../state/SombraProvider";
+import { OperationJourney } from "../components/OperationJourney";
 import type { SwapQuote, SwapResult } from "../lib/client";
 import {
   formatAmount,
@@ -121,6 +122,7 @@ export function Swap() {
 
   return (
     <>
+      <OperationJourney op="swap" active={running} succeeded={!!result} />
       <ScreenHeader
         title="Swap"
         lede="Trade from inside the pool without tying the trade to your history. Funds leave to an address with no past, swap in public, and come straight back."

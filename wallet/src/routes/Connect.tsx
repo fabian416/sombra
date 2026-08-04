@@ -1,37 +1,28 @@
 import { useEffect, useState } from "react";
 import { Eclipse } from "../components/Eclipse";
 import { DecryptText } from "../components/DecryptText";
-import { Button, Eyebrow } from "../components/ui";
-import { useSombra } from "../state/SombraProvider";
+import { ArchivePanel } from "../components/ArchivePanel";
+import { Button } from "../components/ui";
+import { ARCHIVE_URL, useSombra } from "../state/SombraProvider";
 import { detectFreighter } from "../lib/freighter";
 
 /**
- * Copy deck — the landing strings, in the order they are read. Kept here so the
- * demo script and the screen never drift apart.
+ * Copy deck — the gate, in reading order. Kept beside the screen so the demo
+ * script and the UI cannot drift apart.
  *
- *   Eyebrow    Confidential Token · Private payment pools
- *   Headline   Hidden on chain. / Never lost.
- *   Body       A confidential balance is a commitment, not a number. Spending
- *              one means replaying the account's full event history, and
- *              Stellar RPC retains seven days of it.
- *   Turn       Past that window a balance stays visibly yours and stops being
- *              spendable. Sombra keeps the history that makes it spendable.
- *   Actions    Connect Freighter · Explore with demo data
- *   Facts      7 days / Indefinite / Zero trust
- *   Plate      The chain stores → a Pedersen commitment
- *              You read → 840.2500000 XLM, spendable
+ *   Chips      Confidential Token · Stellar / Conforme à spec · Trustless · Open source
+ *   Headline   Oculto na chain. / Nunca perdido.
+ *   Body       Um saldo confidencial é um compromisso, não um número. Gastá-lo
+ *              exige reproduzir todo o histórico de eventos da conta, e a RPC
+ *              da Stellar guarda sete dias.
+ *   CTA        Conectar Freighter → · ver status do Archive ↗
+ *   Painel     A chain vê / Você vê · Cobertura do histórico · Ingestão
  *
  * Register: state the mechanism, then its consequence. No superlatives, no
- * filler, no exclamation marks. The numbers carry the drama on their own.
+ * filler. The numbers carry the weight on their own.
  */
 
-/** Facts, not features. Each one is checkable. */
-const LEDGER = [
-  { figure: "7 days", note: "Soroban RPC event retention" },
-  { figure: "Indefinite", note: "Sombra Archive retention" },
-  { figure: "Zero trust", note: "Every replay verified against chain" },
-];
-
+/** This is a wallet, not a marketing site: one viewport, one action. */
 export function Connect() {
   const { connect, connecting, connectError, enterPreview } = useSombra();
   const [installed, setInstalled] = useState<boolean | null>(null);
@@ -43,76 +34,90 @@ export function Connect() {
   const missing = installed === false;
 
   return (
-    <main className="relative z-10 mx-auto flex min-h-dvh w-full max-w-[1180px] flex-col px-6 py-8 sm:px-10 lg:py-12">
+    <div className="relative z-10 flex min-h-dvh flex-col px-6 py-6 sm:px-10">
       <header className="flex items-center justify-between gap-6">
         <Wordmark />
-        <div className="flex items-center gap-2">
-          <span className="eyebrow rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-ash backdrop-blur">
-            Testnet
-          </span>
-        </div>
+        <span className="eyebrow rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-ash backdrop-blur">
+          Testnet
+        </span>
       </header>
 
-      <div className="grid flex-1 items-center gap-14 py-14 lg:grid-cols-[1.05fr_0.95fr] lg:gap-8 lg:py-8">
-        <div className="max-w-[36rem] animate-rise">
-          <Eyebrow className="text-cyan">
-            Confidential Token &nbsp;·&nbsp; Private payment pools
-          </Eyebrow>
+      <main className="grid flex-1 items-center gap-12 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-10 lg:py-4">
+        <div className="max-w-[34rem]">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="eyebrow rounded-full border border-cyan/35 px-2.5 py-1 text-cyan">
+              Confidential Token · Stellar
+            </span>
+            <span className="eyebrow text-ash">
+              Conforme à spec · Trustless · Open source
+            </span>
+          </div>
 
-          {/* The headline arrives as ciphertext and decrypts — the second line
-              resolving last, so "Never lost." is the word that lands. */}
-          <h1 className="mt-5 text-[clamp(2.6rem,6.4vw,4.35rem)]">
+          <h1 className="mt-6 text-[clamp(2.5rem,6vw,4.1rem)]">
             <DecryptText
               as="span"
-              text="Hidden on chain."
-              delayMs={180}
-              perCharMs={38}
+              text="Oculto na chain."
+              delayMs={160}
+              perCharMs={34}
+              ambient
               className="block text-corona"
             />
             <DecryptText
               as="span"
-              text="Never lost."
-              delayMs={900}
-              perCharMs={46}
+              text="Nunca perdido."
+              delayMs={720}
+              perCharMs={40}
+              ambient
               className="glow-text block text-cyan"
             />
           </h1>
 
-          <p className="mt-6 max-w-[33rem] text-[15.5px] leading-[1.7] text-corona-dim">
-            A confidential balance is a commitment, not a number. Spending one
-            means replaying the account's full event history, and Stellar RPC
-            retains seven days of it.
+          <p className="mt-6 max-w-[32rem] text-[15.5px] leading-[1.7] text-corona-dim">
+            Um saldo confidencial é um compromisso, não um número. Gastá-lo exige
+            reproduzir todo o histórico de eventos da conta, e a RPC da Stellar
+            guarda sete dias.
           </p>
-          <p className="mt-3.5 max-w-[33rem] text-[15.5px] leading-[1.7] text-ash">
-            Past that window a balance stays visibly yours and stops being
-            spendable. Sombra keeps the history that makes it spendable.
+          <p className="mt-3.5 max-w-[32rem] text-[15.5px] leading-[1.7] text-ash">
+            Depois dessa janela o saldo continua visivelmente seu e deixa de ser
+            gastável. O Sombra guarda o histórico que o torna gastável de novo.
           </p>
 
-          <div className="mt-9 flex flex-wrap items-center gap-3">
+          <div className="mt-8 flex flex-wrap items-center gap-4">
             <Button
               variant="primary"
               busy={connecting}
               onClick={() => void connect()}
               className="px-6 py-3 text-[14px]"
             >
-              {connecting ? "Waiting for Freighter" : "Connect Freighter"}
+              {connecting ? "Aguardando o Freighter" : "Conectar Freighter →"}
             </Button>
+            <a
+              href={`${ARCHIVE_URL}/v1/health`}
+              target="_blank"
+              rel="noreferrer"
+              className="eyebrow text-ash underline decoration-white/20 underline-offset-4 transition-colors hover:text-corona"
+            >
+              ver status do Archive ↗
+            </a>
+          </div>
+
+          <div className="mt-4 flex flex-wrap items-center gap-4">
             {missing && (
               <a
                 href="https://www.freighter.app/"
                 target="_blank"
                 rel="noreferrer"
-                className="eyebrow text-ash underline decoration-limb-bright underline-offset-4 transition-colors hover:text-corona"
+                className="eyebrow text-cyan underline decoration-cyan/40 underline-offset-4"
               >
-                Install Freighter
+                Instalar o Freighter
               </a>
             )}
             <button
               type="button"
               onClick={enterPreview}
-              className="eyebrow text-ash underline decoration-limb-bright underline-offset-4 transition-colors hover:text-corona"
+              className="eyebrow text-ash/70 underline decoration-white/15 underline-offset-4 transition-colors hover:text-corona"
             >
-              Explore with demo data
+              Explorar com dados de demonstração
             </button>
           </div>
 
@@ -120,46 +125,32 @@ export function Connect() {
             <p className="mt-4 max-w-[30rem] text-[13px] text-chroma">
               {connectError}{" "}
               {missing
-                ? "Install the extension, then reload this page."
-                : "Open the extension, unlock it, and try again."}
+                ? "Instale a extensão e recarregue a página."
+                : "Abra a extensão, desbloqueie e tente de novo."}
             </p>
           )}
-
-          <dl className="mt-12 grid max-w-[34rem] grid-cols-1 gap-3 sm:grid-cols-3">
-            {LEDGER.map((item) => (
-              <div
-                key={item.figure}
-                className="rounded-xl border border-white/10 bg-white/5 px-4 py-3.5 backdrop-blur"
-              >
-                <dt className="numeral text-[15px] text-corona">
-                  {item.figure}
-                </dt>
-                <dd className="mt-1 text-[12.5px] leading-snug text-ash">
-                  {item.note}
-                </dd>
-              </div>
-            ))}
-          </dl>
         </div>
 
-        <EclipsePlate />
-      </div>
+        <div className="flex justify-center lg:justify-end">
+          <ArchivePanel />
+        </div>
+      </main>
 
-      <footer className="eyebrow flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-limb pt-5 text-ash">
+      <footer className="eyebrow flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-white/10 pt-4 text-ash">
         <span>Stellar Builder Summit SP 26</span>
-        <span className="text-limb-bright">/</span>
-        <span>Privacy lane</span>
-        <span className="text-limb-bright">/</span>
+        <span className="text-white/20">/</span>
+        <span>Trilha de privacidade</span>
+        <span className="text-white/20">/</span>
         <span>OpenZeppelin &nbsp;+&nbsp; Nethermind</span>
       </footer>
-    </main>
+    </div>
   );
 }
 
 export function Wordmark({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3">
-      <Eclipse size={compact ? 24 : 28} intensity={1} variant="mark" />
+      <Eclipse size={compact ? 26 : 30} intensity={1} />
       <span
         className="display leading-none text-corona"
         style={{
@@ -170,59 +161,6 @@ export function Wordmark({ compact = false }: { compact?: boolean }) {
       >
         SOMBRA
       </span>
-    </div>
-  );
-}
-
-/**
- * The thesis as an image: one object, two readings. The black disc is what an
- * observer gets; the corona is what only the key holder sees. Annotated like a
- * plate from an observatory bulletin, because that is what it is.
- */
-function EclipsePlate() {
-  return (
-    <div className="flex justify-center lg:justify-end">
-      <div className="relative aspect-square w-[min(84vw,420px)]">
-        <Eclipse
-          size={420}
-          intensity={1}
-          className="absolute inset-0 h-full w-full"
-        />
-
-        {/* Leader lines, drawn in the plate's own coordinate space so they stay
-            pinned to the disc and the corona at every viewport width. */}
-        <svg
-          viewBox="0 0 100 100"
-          preserveAspectRatio="none"
-          className="absolute inset-0 h-full w-full"
-          aria-hidden
-        >
-          <g stroke="rgba(56,226,255,0.28)" strokeWidth="0.3" fill="none">
-            <path d="M 57 43 L 70 22 L 100 22" />
-            <path d="M 30 60 L 15 79 L 0 79" />
-          </g>
-          <circle cx="57" cy="43" r="0.8" fill="#8BA0B8" />
-          <circle cx="30" cy="60" r="0.8" fill="#38E2FF" />
-        </svg>
-
-        <div className="absolute right-0 top-0 w-[9.5rem] text-right">
-          <Eyebrow className="text-ash">The chain stores</Eyebrow>
-          <p className="numeral mt-1 text-[12.5px] leading-snug text-ash">
-            0x04a1…9f3c
-          </p>
-          <p className="mt-0.5 text-[12px] leading-snug text-ash/65">
-            a Pedersen commitment
-          </p>
-        </div>
-
-        <div className="absolute bottom-0 left-0 w-[10.5rem]">
-          <Eyebrow className="text-corona-dim">You read</Eyebrow>
-          <p className="numeral mt-1 text-[13.5px] leading-snug text-corona">
-            840.2500000 XLM
-          </p>
-          <p className="mt-0.5 text-[12px] leading-snug text-ash">spendable</p>
-        </div>
-      </div>
     </div>
   );
 }

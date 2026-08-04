@@ -18,28 +18,28 @@ import { toast } from "../lib/toast";
 const STEPS: Array<{ phase: RecoveryPhase; title: string; note: string }> = [
   {
     phase: "derive",
-    title: "Derive keys",
-    note: "From a signature by the enrolled signer, bound to this contract and account",
+    title: "Derivar chaves",
+    note: "De uma assinatura do signatário registrado, vinculada a este contrato e conta",
   },
   {
     phase: "checkpoint",
-    title: "Fetch checkpoint",
-    note: "From the Sombra Archive, which retains events past the RPC floor",
+    title: "Buscar checkpoint",
+    note: "No Sombra Archive, que retém eventos abaixo do piso da RPC",
   },
   {
     phase: "replay",
-    title: "Replay events",
-    note: "Every deposit, transfer and merge since the checkpoint",
+    title: "Reproduzir eventos",
+    note: "Cada depósito, transferência e incorporação desde o checkpoint",
   },
   {
     phase: "verify",
-    title: "Verify against chain",
-    note: "Re-commit the openings and compare to the on-chain points",
+    title: "Verificar na chain",
+    note: "Recompor as aberturas e comparar com os pontos na chain",
   },
   {
     phase: "restored",
-    title: "Funds restored",
-    note: "The balance is spendable again",
+    title: "Fundos restaurados",
+    note: "O saldo volta a ser gastável",
   },
 ];
 
@@ -100,9 +100,9 @@ export function Recover() {
       await refresh();
     } catch (err) {
       const detail =
-        err instanceof Error ? err.message : "Recovery stopped before finishing.";
+        err instanceof Error ? err.message : "A recuperação parou antes de terminar.";
       setError(detail);
-      toast.error("Recovery failed", detail);
+      toast.error("Falha na recuperação", detail);
       setProgress(null);
     } finally {
       setRunning(false);
@@ -130,15 +130,15 @@ export function Recover() {
       )}
 
       <ScreenHeader
-        title="Recover"
-        lede="Stellar RPC retains seven days of history. The Sombra Archive retains all of it, so a wallet signature is enough to make a confidential balance spendable again on any device."
+        title="Recuperar"
+        lede="A RPC da Stellar retém sete dias de histórico. O Sombra Archive retém tudo, então a assinatura da carteira basta para tornar um saldo confidencial gastável de novo, em qualquer dispositivo."
       />
 
       {!hasLocalState && !showStage && (
         <div className="mb-6">
           <Notice tone="warn">
-            This device has no openings for your confidential balance. The funds
-            are on chain and unreadable until you recover.
+            Este dispositivo não tem as aberturas do seu saldo confidencial. Os
+            fundos estão na chain e ilegíveis até você recuperar.
           </Notice>
         </div>
       )}
@@ -152,35 +152,36 @@ export function Recover() {
         {!showStage && (
           <Panel className="min-w-0">
             <PanelHeader
-              title="Recover with your wallet signature"
+              title="Recuperar com a assinatura da carteira"
               layer="ARCHIVE"
-              note="There is nothing to type. Your keys come from a signature, not a phrase."
+              note="Não há nada para digitar. Suas chaves vêm de uma assinatura, não de uma frase."
             />
             <div className="space-y-5 px-5 py-5">
               <p className="text-[13.5px] leading-relaxed text-ash">
-                Sombra asks your wallet to sign one fixed message naming this
-                token contract and your account. That signature derives the same
-                keys on any device, so nothing has to be stored.
+                O Sombra pede à sua carteira uma assinatura sobre uma mensagem
+                fixa que nomeia este contrato e a sua conta. Essa assinatura
+                deriva as mesmas chaves em qualquer dispositivo, então nada
+                precisa ser guardado.
               </p>
 
               <Button variant="primary" onClick={() => void start()}>
-                Sign and recover
+                Assinar e recuperar
               </Button>
 
               {error && <Notice tone="warn">{error}</Notice>}
 
               <div className="space-y-3 border-t border-white/10 pt-4">
                 <div>
-                  <Eyebrow>Archive endpoint</Eyebrow>
+                  <Eyebrow>Endpoint do Archive</Eyebrow>
                   <p className="numeral-wrap mt-1.5 text-[12.5px] text-ash">
                     {ARCHIVE_URL}
                   </p>
                 </div>
                 {CLIENT_MODE === "mock" && (
                   <Notice>
-                    Simulated in this build. No Archive request is made and no
-                    keys are derived — the flow, the timings and the failure
-                    states are real, the cryptography is not yet wired.
+                    Simulado nesta versão. Nenhuma requisição ao Archive é feita
+                    e nenhuma chave é derivada — o fluxo, os tempos e os estados
+                    de falha são reais; a criptografia ainda não está ligada.
                   </Notice>
                 )}
               </div>
@@ -200,11 +201,11 @@ export function Recover() {
       {(showStage || log.length > 0) && (
         <div className="mt-5 grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
           <Panel className="min-w-0">
-            <PanelHeader title="Replay log" layer="ARCHIVE" />
+            <PanelHeader title="Registro da reprodução" layer="ARCHIVE" />
             <div className="h-[188px] overflow-y-auto px-5 py-4">
               {log.length === 0 ? (
                 <p className="text-[13px] text-ash">
-                  Waiting for the first event.
+                  Aguardando o primeiro evento.
                 </p>
               ) : (
                 <ol className="space-y-1.5">
@@ -228,7 +229,7 @@ export function Recover() {
           </Panel>
 
           <Panel className="min-w-0">
-            <PanelHeader title="Steps" />
+            <PanelHeader title="Etapas" />
             <ol className="divide-y divide-white/10">
               {STEPS.map((step, i) => {
                 const done = i < complete;
@@ -297,19 +298,19 @@ function Outcome({
       <div className="mt-5">
         <Panel className="min-w-0">
           <PanelHeader
-            title="Recovery stopped — incomplete history"
+            title="Recuperação interrompida — histórico incompleto"
             layer="ARCHIVE"
-            action={<Button onClick={onReset}>Try again</Button>}
+            action={<Button onClick={onReset}>Tentar de novo</Button>}
           />
           <div className="space-y-4 px-5 py-5">
             <Notice>
-              The Archive answered and what it returned was well formed. It just
-              does not hold every ledger in your history, so a replay would be
-              missing events and the balance it produced would be wrong.
+              O Archive respondeu e o que veio está bem formado. Só que ele não
+              guarda todos os ledgers do seu histórico: a reprodução ficaria sem
+              eventos e o saldo resultante estaria errado.
             </Notice>
 
             <div>
-              <Eyebrow>Ledgers the Archive is missing</Eyebrow>
+              <Eyebrow>Ledgers que faltam no Archive</Eyebrow>
               <ul className="mt-2 space-y-1">
                 {(result.missingRanges ?? []).map((range) => (
                   <li
@@ -325,9 +326,9 @@ function Outcome({
             <Coverage ranges={result.archiveCoverage} />
 
             <p className="text-[13px] leading-relaxed text-ash">
-              Point Sombra at an archive that covers the gap and run this again.
-              Your funds are untouched — nothing was written, and no partial
-              state was saved.
+              Aponte o Sombra para um archive que cubra a lacuna e rode de novo.
+              Seus fundos estão intactos: nada foi escrito e nenhum estado
+              parcial foi salvo.
             </p>
           </div>
         </Panel>
@@ -340,20 +341,19 @@ function Outcome({
       <div className="mt-5">
         <Panel className="min-w-0 border-chroma/45">
           <PanelHeader
-            title="Recovery refused — verification failed"
+            title="Recuperação recusada — verificação falhou"
             layer="ARCHIVE"
-            action={<Button onClick={onReset}>Try again</Button>}
+            action={<Button onClick={onReset}>Tentar de novo</Button>}
           />
           <div className="space-y-4 px-5 py-5">
             <Notice tone="warn">
-              The Archive served your whole history with no gaps, but the
-              openings rebuilt from it do not commit to the points on chain. The
-              events this archive returned are not the events your account
-              emitted.
+              O Archive serviu todo o histórico sem lacunas, mas as aberturas
+              reconstruídas não correspondem aos pontos na chain. Os eventos que
+              este archive devolveu não são os que a sua conta emitiu.
             </Notice>
             <p className="text-[13px] leading-relaxed text-ash">
-              Nothing was saved. Do not spend against this archive — try an
-              independent one and compare.
+              Nada foi salvo. Não gaste com base neste archive — use um
+              independente e compare.
             </p>
           </div>
         </Panel>
@@ -365,42 +365,42 @@ function Outcome({
     <div className="mt-5">
       <Panel className="glow-hero min-w-0">
         <PanelHeader
-          title="Restored"
+          title="Restaurado"
           layer="ARCHIVE"
-          action={<Button onClick={onReset}>Run it again</Button>}
+          action={<Button onClick={onReset}>Rodar de novo</Button>}
         />
         <div className="grid gap-x-8 gap-y-5 px-5 py-5 sm:grid-cols-2 lg:grid-cols-4">
           <Figure
-            label="Spendable"
+            label="Gastável"
             value={`${formatAmount(result.restored.spendable)} XLM`}
             tone="cyan"
           />
           <Figure
-            label="Receiving"
+            label="A receber"
             value={`${formatAmount(result.restored.receiving)} XLM`}
             tone="cyan"
           />
           <Figure
-            label="Events replayed"
+            label="Eventos reproduzidos"
             value={formatCount(result.eventsReplayed)}
             sub={`ledgers ${formatLedger(result.fromLedger)} – ${formatLedger(result.throughLedger)}`}
           />
           <Figure
-            label="Below the RPC floor"
+            label="Abaixo do piso da RPC"
             value={formatCount(result.beyondRpcWindow)}
             tone="cyan"
-            sub="unavailable without the Archive"
+            sub="indisponíveis sem o Archive"
           />
         </div>
         <div className="space-y-4 border-t border-white/10 px-5 py-4">
           <Coverage ranges={result.archiveCoverage} />
           <Notice tone="good">
-            Served whole, and verified against the on-chain commitments. Your
-            balance is spendable again —{" "}
+            Servido inteiro e verificado contra os compromissos na chain. Seu
+            saldo voltou a ser gastável —{" "}
             <Link to="/send" className="underline underline-offset-4">
-              send a private transfer
+              faça uma transferência confidencial
             </Link>{" "}
-            to prove it.
+            para comprovar.
           </Notice>
         </div>
       </Panel>
@@ -412,7 +412,7 @@ function Coverage({ ranges }: { ranges: LedgerRange[] }) {
   if (!ranges.length) return null;
   return (
     <div>
-      <Eyebrow>Archive coverage</Eyebrow>
+      <Eyebrow>Cobertura do Archive</Eyebrow>
       <ul className="mt-1.5 space-y-0.5">
         {ranges.map((range) => (
           <li
@@ -460,7 +460,7 @@ function PhaseOverlay({
 
       <p className="numeral mt-3 text-[13px] text-ash">
         {progress?.eventsTotal
-          ? `${formatCount(progress.eventsReplayed ?? 0)} / ${formatCount(progress.eventsTotal)} events`
+          ? `${formatCount(progress.eventsReplayed ?? 0)} / ${formatCount(progress.eventsTotal)} eventos`
           : `${Math.round(fraction * 100)}%`}
       </p>
 
@@ -487,9 +487,9 @@ function Stage({
   const succeeded = result?.complete === true && result.verifiedAgainstChain;
   const headline = result
     ? succeeded
-      ? "Funds restored"
-      : "Recovery stopped"
-    : (progress?.label ?? "Nothing here yet");
+      ? "Fundos restaurados"
+      : "Recuperação interrompida"
+    : (progress?.label ?? "Nada aqui ainda");
 
   return (
     <Panel className="relative min-w-0 overflow-hidden">
@@ -517,13 +517,13 @@ function Stage({
         {progress?.eventsTotal ? (
           <p className="numeral mt-2.5 text-[13px] text-ash">
             {formatCount(progress.eventsReplayed ?? 0)} /{" "}
-            {formatCount(progress.eventsTotal)} events
+            {formatCount(progress.eventsTotal)} eventos
           </p>
         ) : (
           <p className="mt-2.5 max-w-[26rem] text-center text-[13px] leading-relaxed text-ash">
             {running
-              ? "Rebuilding the openings that make the commitments spendable."
-              : "The disc is what the chain stores. The corona is what only your keys can see — and what a wiped device loses."}
+              ? "Reconstruindo as aberturas que tornam os compromissos gastáveis."
+              : "O disco é o que a chain guarda. A coroa é o que só as suas chaves enxergam — e o que um dispositivo apagado perde."}
           </p>
         )}
       </div>
@@ -583,10 +583,10 @@ function DemoControls({
     <div className="mt-8 rounded-2xl border border-dashed border-white/15 px-5 py-4">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <Eyebrow className="text-chroma">Demo controls</Eyebrow>
+          <Eyebrow className="text-chroma">Controles de demonstração</Eyebrow>
           <p className="mt-1 max-w-[34rem] text-[12.5px] leading-relaxed text-ash">
-            Wipe the local openings to simulate a lost device. The commitments
-            stay on chain; only this browser forgets how to open them.
+            Apague as aberturas locais para simular um dispositivo perdido. Os
+            compromissos ficam na chain; só este navegador esquece como abri-los.
           </p>
         </div>
         {confirming ? (
@@ -599,9 +599,9 @@ function DemoControls({
                 setConfirming(false);
               }}
             >
-              Wipe it
+              Apagar
             </Button>
-            <Button onClick={() => setConfirming(false)}>Cancel</Button>
+            <Button onClick={() => setConfirming(false)}>Cancelar</Button>
           </div>
         ) : (
           <Button
@@ -609,7 +609,7 @@ function DemoControls({
             disabled={disabled}
             onClick={() => setConfirming(true)}
           >
-            Wipe local state
+            Apagar estado local
           </Button>
         )}
       </div>
@@ -626,8 +626,8 @@ function DemoControls({
             }}
             className="mt-0.5 size-3.5 accent-cyan"
           />
-          Simulate an archive missing part of the history, to show how a coverage
-          gap differs from a verification failure.
+          Simular um archive sem parte do histórico, para mostrar como uma
+          lacuna de cobertura difere de uma falha de verificação.
         </label>
       )}
     </div>

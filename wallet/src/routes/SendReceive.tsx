@@ -14,6 +14,7 @@ import {
 import { useSombra } from "../state/SombraProvider";
 import { useOperationFlow } from "../lib/useOperationFlow";
 import { CipherSweep } from "../components/CipherSweep";
+import { OperationJourney } from "../components/OperationJourney";
 import type { ReceiveInfo, TxReceipt } from "../lib/client";
 import {
   formatAmount,
@@ -127,6 +128,7 @@ function SendForm() {
 
   return (
     <div className="grid gap-5 lg:grid-cols-[1.1fr_0.9fr]">
+      <OperationJourney op="send" active={sending} succeeded={!!receipt} />
       <Panel>
         <PanelHeader title="Private transfer" layer="CT" />
         <CipherSweep active={sending} label="Encrypting">

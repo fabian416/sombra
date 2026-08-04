@@ -6,30 +6,27 @@ interface EclipseProps {
   intensity?: number;
   /** Ring of arc segments around the limb, for stepped progress. */
   segments?: { total: number; complete: number };
-  /**
-   * "mark" is the logo: a few bold, uneven streamers so the rotation reads at
-   * 24–36px. "full" is the plate, with the fine ray field.
-   */
-  variant?: "full" | "mark";
-  /** Seconds per corona revolution. Defaults: 9 for the mark, 48 for the plate. */
+  /** Seconds per corona revolution. Defaults: 9 below 40px, 48 above. */
   spinSeconds?: number;
   className?: string;
 }
 
 /**
- * The Sombra mark and the app's one piece of theatre.
+ * The Sombra mark.
  *
- * A total eclipse, drawn honestly: the disc is always black — that is what the
- * ledger holds, and it never brightens. What returns is the corona.
+ * A total eclipse, drawn the way one actually looks: a pure black void, a
+ * luminous rim, and haze. No hairline rays — a real corona is light, not
+ * scratches — so the streamers are a handful of broad, very faint wedges that
+ * only register as asymmetry while they turn.
  *
- * The disc never moves. The light rotates around it and cannot get in: the
- * private thing stays fixed while everything else turns.
+ * The disc is empty by rule: nothing is drawn inside it and no annotation
+ * crosses into it. It is the thing nobody gets to see, and the single brilliant
+ * point on its rim is the thing you do.
  */
 export function Eclipse({
   size = 320,
   intensity = 1,
   segments,
-  variant = "full",
   spinSeconds,
   className,
 }: EclipseProps) {
@@ -38,44 +35,47 @@ export function Eclipse({
 
   const c = size / 2;
   const disc = size * 0.235;
-  const glow = size * 0.5;
-  const limb = (disc / glow) * 100;
+  const outer = size * 0.5;
+  const limbPct = (disc / outer) * 100;
 
-  const isMark = variant === "mark";
-  const spin = spinSeconds ?? (isMark ? 9 : 48);
+  // Below ~40px the streamers are noise; the mark is disc + limb + point.
+  const showStreamers = size >= 40;
+  const spin = spinSeconds ?? (size < 40 ? 9 : 48);
 
-  /**
-   * The mark needs asymmetry to read as spinning at logo size, so it gets a
-   * handful of long uneven streamers instead of the plate's even field.
-   */
-  // Lengths stay under (size/2 - disc) so the longest streamer never clips the
-  // viewBox at logo size.
-  const markUnit = size * 0.5 - disc;
-  const rays = isMark
-    ? [
-        { angle: 8, length: markUnit * 0.86, width: size * 0.05, opacity: 0.95 },
-        { angle: 52, length: markUnit * 0.3, width: size * 0.032, opacity: 0.5 },
-        { angle: 104, length: markUnit * 0.62, width: size * 0.042, opacity: 0.75 },
-        { angle: 143, length: markUnit * 0.24, width: size * 0.028, opacity: 0.42 },
-        { angle: 199, length: markUnit * 0.98, width: size * 0.055, opacity: 1 },
-        { angle: 248, length: markUnit * 0.34, width: size * 0.03, opacity: 0.48 },
-        { angle: 296, length: markUnit * 0.72, width: size * 0.046, opacity: 0.82 },
-        { angle: 334, length: markUnit * 0.28, width: size * 0.03, opacity: 0.45 },
-      ]
-    : Array.from({ length: 40 }, (_, i) => {
-        // Deterministic pseudo-random so the ray field is stable across renders.
-        const n = Math.sin(i * 12.9898) * 43758.5453;
-        const r = n - Math.floor(n);
-        return {
-          angle: (i / 40) * 360 + r * 5,
-          length: disc * (0.22 + r * 0.95),
-          width: 0.5 + r * 1.1,
-          opacity: 0.1 + r * 0.3,
-        };
-      });
+  /** Broad, tapered haze wedges. Uneven on purpose, so rotation reads. */
+  const streamers = [
+    { angle: 12, spread: 15, reach: 1.85, opacity: 0.5 },
+    { angle: 78, spread: 9, reach: 1.35, opacity: 0.28 },
+    { angle: 152, spread: 18, reach: 2.1, opacity: 0.6 },
+    { angle: 214, spread: 8, reach: 1.25, opacity: 0.24 },
+    { angle: 279, spread: 13, reach: 1.7, opacity: 0.42 },
+    { angle: 331, spread: 7, reach: 1.2, opacity: 0.2 },
+  ];
 
-  const segRadius = disc + size * 0.055;
+  /** A wedge that starts wide at the limb and thins as it reaches out. */
+  const wedge = (angle: number, spread: number, reach: number) => {
+    const inner = disc * 0.99;
+    const far = disc * reach;
+    const taper = 0.45;
+    const rad = (deg: number) => (deg * Math.PI) / 180;
+    const p = (r: number, a: number) =>
+      `${c + r * Math.sin(a)},${c - r * Math.cos(a)}`;
+    return [
+      `M ${p(inner, rad(angle - spread))}`,
+      `L ${p(far, rad(angle - spread * taper))}`,
+      `L ${p(far, rad(angle + spread * taper))}`,
+      `L ${p(inner, rad(angle + spread))}`,
+      "Z",
+    ].join(" ");
+  };
+
+  const segRadius = disc + size * 0.075;
   const segCirc = 2 * Math.PI * segRadius;
+
+  // The diamond point sits on the rim, off-axis.
+  const pointAngle = (38 * Math.PI) / 180;
+  const px = c + disc * Math.sin(pointAngle);
+  const py = c - disc * Math.cos(pointAngle);
 
   return (
     <svg
@@ -86,89 +86,84 @@ export function Eclipse({
       role="img"
       aria-label={
         segments
-          ? `Eclipse, ${segments.complete} of ${segments.total} steps complete`
-          : "Sombra eclipse mark"
+          ? `Eclipse, ${segments.complete} de ${segments.total} etapas`
+          : "Marca Sombra"
       }
     >
       <defs>
-        {/* Tight at the limb, gone well before the edge — a corona, not a haze.
-            Offsets are fractions of `glow`, so the limb sits at `limb`%. */}
-        <radialGradient id={`corona-${uid}`}>
-          <stop offset={`${limb}%`} stopColor="#EAFDFF" stopOpacity="0" />
+        {/* The limb: brightest exactly at the rim, gone within a few percent.
+            A gradient rather than a stroke, so it glows instead of outlining. */}
+        <radialGradient id={`limb-${uid}`}>
+          <stop offset={`${limbPct - 1}%`} stopColor="#EAFDFF" stopOpacity="0" />
           <stop
-            offset={`${limb + 0.6}%`}
-            stopColor="#38E2FF"
-            stopOpacity={0.62 * t}
+            offset={`${limbPct}%`}
+            stopColor="#CFF7FF"
+            stopOpacity={0.95 * t}
           />
           <stop
-            offset={`${limb + 5}%`}
+            offset={`${limbPct + 1.6}%`}
             stopColor="#38E2FF"
-            stopOpacity={0.2 * t}
+            stopOpacity={0.55 * t}
           />
           <stop
-            offset={`${limb + 15}%`}
-            stopColor="#22B8D8"
-            stopOpacity={0.07 * t}
+            offset={`${limbPct + 6}%`}
+            stopColor="#38E2FF"
+            stopOpacity={0.16 * t}
           />
           <stop
-            offset={`${limb + 30}%`}
+            offset={`${limbPct + 18}%`}
             stopColor="#38E2FF"
-            stopOpacity={0.025 * t}
+            stopOpacity={0.05 * t}
           />
           <stop offset="100%" stopColor="#38E2FF" stopOpacity="0" />
         </radialGradient>
 
-        <filter id={`soft-${uid}`} x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation={size * 0.005} />
-        </filter>
+        {/* Haze fill for the streamers: fades to nothing before the edge. */}
+        <radialGradient id={`haze-${uid}`}>
+          <stop offset={`${limbPct}%`} stopColor="#9BEEFF" stopOpacity="0.5" />
+          <stop
+            offset={`${limbPct + 22}%`}
+            stopColor="#38E2FF"
+            stopOpacity="0.16"
+          />
+          <stop offset="100%" stopColor="#38E2FF" stopOpacity="0" />
+        </radialGradient>
+
+        <radialGradient id={`point-${uid}`}>
+          <stop offset="0%" stopColor="#FFFFFF" stopOpacity={t} />
+          <stop offset="22%" stopColor="#CFF7FF" stopOpacity={0.9 * t} />
+          <stop offset="55%" stopColor="#38E2FF" stopOpacity={0.35 * t} />
+          <stop offset="100%" stopColor="#38E2FF" stopOpacity="0" />
+        </radialGradient>
       </defs>
 
-      <circle cx={c} cy={c} r={glow} fill={`url(#corona-${uid})`} />
-
-      {/* The streamers turn; the disc below them does not. */}
-      {/* No SVG filter on this group. It rotates, and rotating a filtered group
-          forces the Gaussian blur to re-rasterize every frame — enough to peg
-          the main thread on a page that has several of these. The streamers are
-          softened with opacity and rounded caps instead. */}
-      <g
-        opacity={t * 0.85}
-        style={{
-          transformOrigin: "center",
-          animation: `corona-drift ${spin}s linear infinite`,
-          willChange: "transform",
-        }}
-      >
-        {rays.map((ray, i) => (
-          <rect
-            key={i}
-            x={c - ray.width / 2}
-            y={c - disc - ray.length}
-            width={ray.width}
-            height={ray.length}
-            rx={ray.width / 2}
-            fill="#9BEEFF"
-            opacity={ray.opacity}
-            transform={`rotate(${ray.angle} ${c} ${c})`}
-          />
-        ))}
-      </g>
-
-      {/* Hydrogen-alpha prominence: one flare, off-axis, at high intensity only. */}
-      {variant === "full" && t > 0.85 && (
-        <path
-          d={`M ${c + disc * 0.62} ${c - disc * 0.78}
-              q ${disc * 0.26} ${-disc * 0.2} ${disc * 0.34} ${disc * 0.06}
-              q ${-disc * 0.16} ${-disc * 0.04} ${-disc * 0.34} ${disc * 0.1} Z`}
-          fill="#FF4D6D"
-          opacity={0.5 * (t - 0.85) * 6.6}
-          filter={`url(#soft-${uid})`}
-        />
+      {/* Haze first, so the limb reads on top of it. */}
+      {showStreamers && (
+        <g
+          opacity={t * 0.85}
+          style={{
+            transformOrigin: "center",
+            animation: `corona-drift ${spin}s linear infinite`,
+            willChange: "transform",
+          }}
+        >
+          {streamers.map((s, i) => (
+            <path
+              key={i}
+              d={wedge(s.angle, s.spread, s.reach)}
+              fill={`url(#haze-${uid})`}
+              opacity={s.opacity}
+            />
+          ))}
+        </g>
       )}
+
+      <circle cx={c} cy={c} r={outer} fill={`url(#limb-${uid})`} />
 
       {segments && segments.total > 0 && (
         <g transform={`rotate(-90 ${c} ${c})`}>
           {Array.from({ length: segments.total }, (_, i) => {
-            const gapDeg = 5;
+            const gapDeg = 7;
             const spanDeg = 360 / segments.total - gapDeg;
             const dash = (spanDeg / 360) * segCirc;
             const done = i < segments.complete;
@@ -179,7 +174,7 @@ export function Eclipse({
                 cy={c}
                 r={segRadius}
                 fill="none"
-                stroke={done ? "#38E2FF" : "rgba(255,255,255,0.14)"}
+                stroke={done ? "#38E2FF" : "rgba(255,255,255,0.1)"}
                 strokeWidth={size * 0.008}
                 strokeLinecap="round"
                 strokeDasharray={`${dash} ${segCirc - dash}`}
@@ -191,17 +186,17 @@ export function Eclipse({
         </g>
       )}
 
-      {/* The chain's view. Always black. */}
-      <circle cx={c} cy={c} r={disc} fill="#000308" />
-      {/* The limb: the one hard, bright edge in the whole mark. */}
+      {/* The void. Painted last so nothing can bleed into it. */}
+      <circle cx={c} cy={c} r={disc} fill="#000000" />
+
+      {/* The diamond ring: the one point of light you are allowed to see. */}
+      <circle cx={px} cy={py} r={size * 0.075} fill={`url(#point-${uid})`} />
       <circle
-        cx={c}
-        cy={c}
-        r={disc}
-        fill="none"
-        stroke="#38E2FF"
-        strokeWidth={Math.max(0.75, size * 0.0045)}
-        opacity={0.12 + 0.78 * t}
+        cx={px}
+        cy={py}
+        r={Math.max(0.6, size * 0.011)}
+        fill="#FFFFFF"
+        opacity={t}
       />
     </svg>
   );

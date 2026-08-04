@@ -31,9 +31,9 @@ export function Home() {
 
   const merge = async () => {
     const result = await merge_.run(() => client.merge(), {
-      success: "Receiving folded into spendable",
-      failure: "Fold failed",
-      describe: (r) => `${formatAmount(r.amount)} XLM is now spendable`,
+      success: "Saldo a receber incorporado",
+      failure: "Falha ao incorporar",
+      describe: (r) => `${formatAmount(r.amount)} XLM agora é gastável`,
     });
     if (result) await refresh();
   };
@@ -41,11 +41,11 @@ export function Home() {
   return (
     <>
       <ScreenHeader
-        title="Balances"
-        lede="One account, three layers. What you read here is not what the ledger stores."
+        title="Saldos"
+        lede="Uma conta, três camadas. O que você lê aqui não é o que o ledger guarda."
         action={
           <Button onClick={() => void refresh()} busy={loadingBalances}>
-            Refresh
+            Atualizar
           </Button>
         }
       />
@@ -54,15 +54,15 @@ export function Home() {
         <div className="mb-6">
           <Notice tone="warn">
             <strong className="font-semibold">
-              Your confidential balance is unreadable on this device.
+              Seu saldo confidencial está ilegível neste dispositivo.
             </strong>{" "}
-            The commitments are still on chain, but without the local openings
-            nothing here can be spent.{" "}
+            Os compromissos continuam na chain, mas sem as aberturas locais
+            nada aqui pode ser gasto.{" "}
             <Link
               to="/recover"
               className="underline underline-offset-4 hover:text-corona"
             >
-              Restore with your wallet signature
+              Recuperar com a assinatura da carteira
             </Link>
             .
           </Notice>
@@ -80,9 +80,9 @@ export function Home() {
           means "only you can read this". */}
       <Panel className="mb-5">
         <PanelHeader
-          title="Public balance"
+          title="Saldo público"
           layer="PUBLIC"
-          note="Anyone can read this, in the clear, forever."
+          note="Qualquer pessoa lê isto, em claro, para sempre."
         />
         <div className="px-5 py-6">
           {pub ? (
@@ -121,14 +121,14 @@ export function Home() {
                   aria-hidden
                 />
                 {conf.matchesChain
-                  ? `Openings match the chain at ledger ${formatLedger(conf.syncedLedger)}`
-                  : "Openings do not match the chain"}
+                  ? `Aberturas conferem com a chain no ledger ${formatLedger(conf.syncedLedger)}`
+                  : "Aberturas não conferem com a chain"}
               </span>
 
               {conf.receiving > 0n && (
                 <Button busy={merging} onClick={() => void merge()}>
-                  Fold {formatAmount(conf.receiving, { decimals: 2 })} into
-                  spendable
+                  Incorporar {formatAmount(conf.receiving, { decimals: 2 })} ao
+                  gastável
                 </Button>
               )}
             </>
@@ -138,9 +138,9 @@ export function Home() {
 
       <Panel className="mt-5 min-w-0">
         <PanelHeader
-          title="Shielded pool"
+          title="Pool blindado"
           layer="SPP"
-          note="Your notes in the private payment pool."
+          note="Suas notas no pool de pagamentos privados."
         />
         <div className="flex flex-wrap items-end justify-between gap-6 px-5 py-6">
           {shielded ? (
@@ -156,10 +156,10 @@ export function Home() {
                 <span className="eyebrow text-ash">{shielded.tokenLabel}</span>
               </div>
               <Stat
-                label="Notes"
+                label="Notas"
                 value={formatCount(shielded.noteCount)}
                 tone="ash"
-                sub="Each note is a spendable UTXO."
+                sub="Cada nota é um UTXO gastável."
               />
             </>
           ) : (
@@ -171,13 +171,13 @@ export function Home() {
             to="/shield"
             className="eyebrow text-ash underline decoration-limb-bright underline-offset-4 transition-colors hover:text-corona"
           >
-            Deposit or withdraw
+            Depositar ou sacar
           </Link>
         </div>
       </Panel>
 
       <p className="mt-6 text-[12.5px] text-ash">
-        Balances come from the mock client. Freighter is live.
+        Saldos vêm do cliente simulado. O Freighter é real.
       </p>
     </>
   );

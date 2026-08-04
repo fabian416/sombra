@@ -11,6 +11,7 @@ import {
 } from "../components/ui";
 import { useSombra } from "../state/SombraProvider";
 import { useOperationFlow } from "../lib/useOperationFlow";
+import { OperationJourney } from "../components/OperationJourney";
 import type { TxReceipt } from "../lib/client";
 import {
   formatAmount,
@@ -75,6 +76,11 @@ export function Shield() {
 
   return (
     <>
+      <OperationJourney
+        op={depositing ? "shield" : "unshield"}
+        active={flow.busy}
+        succeeded={!!flow.result}
+      />
       <ScreenHeader
         title="Shielded pool"
         lede="Deposits and withdrawals are public amounts. What happens between them — who holds what, and who paid whom — is not."

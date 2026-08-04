@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * The one glyph engine in the app.
@@ -26,6 +26,12 @@ export interface GlyphScrambleOptions {
   mode?: ScrambleMode;
   /** Set false to render the final text with no animation at all. */
   run?: boolean;
+  /**
+   * After the entrance resolves, let a short run of characters briefly fall
+   * back to cipher every 8–14s. The text "remembering" it is ciphertext.
+   * This is the app's one idle animation; nothing else may loop at rest.
+   */
+  ambient?: boolean;
 }
 
 export interface ScrambledChar {
@@ -54,7 +60,12 @@ export function useGlyphScramble({
   delayMs = 0,
   mode = "resolve",
   run = true,
-}: GlyphScrambleOptions): { chars: ScrambledChar[]; done: boolean } {
+  ambient = false,
+}: GlyphScrambleOptions): {
+  chars: ScrambledChar[];
+  done: boolean;
+  pulse: (at?: number) => void;
+} {
   const reduced = prefersReducedMotion();
   const instant = !run || (reduced && mode === "resolve");
 
@@ -118,5 +129,76 @@ export function useGlyphScramble({
     return () => cancelAnimationFrame(raf.current);
   }, [text, glyphs, tickMs, perCharMs, delayMs, mode, instant]);
 
-  return { chars, done };
+  /**
+   * Briefly re-cipher a short contiguous run, then let it resolve back. Never
+   * touches more than a few characters, so the line never reflows and the
+   * effect reads as a flicker rather than a re-entrance.
+   */
+  const pulseRef = useRef<number>(0);
+  const [pulseWindow, setPulseWindow] = useState<[number, number] | null>(null);
+
+  const pulse = useCallback(
+    (at?: number) => {
+      if (reduced) return;
+      const source = text.split("");
+      const spots = source
+        .map((ch, i) => (isStatic(ch) ? -1 : i))
+        .filter((i) => i >= 0);
+      if (!spots.length) return;
+
+      const width = 2 + Math.floor(Math.random() * 3);
+      const start =
+        at !== undefined
+          ? Math.max(0, Math.min(at, source.length - width))
+          : spots[Math.floor(Math.random() * Math.max(1, spots.length - width))];
+
+      window.clearTimeout(pulseRef.current);
+      setPulseWindow([start, start + width]);
+      pulseRef.current = window.setTimeout(
+        () => setPulseWindow(null),
+        420 + Math.random() * 180,
+      );
+    },
+    [text, reduced],
+  );
+
+  // Cycle glyphs inside the active pulse window, and schedule the next one.
+  const [pulseTick, setPulseTick] = useState(0);
+  useEffect(() => {
+    if (!pulseWindow) return;
+    const id = setInterval(() => setPulseTick((n) => n + 1), 55);
+    return () => clearInterval(id);
+  }, [pulseWindow]);
+
+  useEffect(() => {
+    if (!ambient || !done || reduced) return;
+    let timer = 0;
+    const schedule = () => {
+      timer = window.setTimeout(
+        () => {
+          // Idle motion has no business running against a tab nobody is looking at.
+          if (!document.hidden) pulse();
+          schedule();
+        },
+        8_000 + Math.random() * 6_000,
+      );
+    };
+    schedule();
+    return () => window.clearTimeout(timer);
+  }, [ambient, done, reduced, pulse]);
+
+  useEffect(() => () => window.clearTimeout(pulseRef.current), []);
+
+  const withPulse = useMemo(() => {
+    if (!pulseWindow) return chars;
+    void pulseTick;
+    const glyph = () => glyphs[Math.floor(Math.random() * glyphs.length)];
+    return chars.map((c, i) =>
+      i >= pulseWindow[0] && i < pulseWindow[1] && !isStatic(c.ch)
+        ? { ch: glyph(), resolved: false }
+        : c,
+    );
+  }, [chars, pulseWindow, pulseTick, glyphs]);
+
+  return { chars: withPulse, done, pulse };
 }

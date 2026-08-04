@@ -16,6 +16,8 @@ interface DecryptTextProps {
   delayMs?: number;
   mode?: ScrambleMode;
   run?: boolean;
+  /** Periodic idle re-cipher of a few glyphs. Hero headline only. */
+  ambient?: boolean;
   as?: ElementType;
 }
 
@@ -38,9 +40,10 @@ export function DecryptText({
   delayMs,
   mode,
   run,
+  ambient,
   as: Tag = "span",
 }: DecryptTextProps) {
-  const { chars } = useGlyphScramble({
+  const { chars, pulse } = useGlyphScramble({
     text,
     glyphs,
     tickMs,
@@ -48,10 +51,15 @@ export function DecryptText({
     delayMs,
     mode,
     run,
+    ambient,
   });
 
   return (
-    <Tag className={className} aria-label={text}>
+    <Tag
+      className={className}
+      aria-label={text}
+      onMouseEnter={ambient ? () => pulse() : undefined}
+    >
       {chars.map((c, i) => (
         <span
           key={i}

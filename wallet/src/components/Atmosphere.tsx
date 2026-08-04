@@ -21,7 +21,7 @@ export function Atmosphere() {
         className="orb -left-40 -top-32 h-[520px] w-[520px]"
         style={{
           background:
-            "radial-gradient(circle, rgba(56,226,255,0.16) 0%, rgba(56,226,255,0.06) 45%, transparent 70%)",
+            "radial-gradient(circle, rgba(56,226,255,0.10) 0%, rgba(56,226,255,0.035) 45%, transparent 70%)",
         }}
         aria-hidden
       />
@@ -29,7 +29,7 @@ export function Atmosphere() {
         className="orb -bottom-48 -right-40 h-[440px] w-[440px]"
         style={{
           background:
-            "radial-gradient(circle, rgba(99,102,241,0.18) 0%, rgba(99,102,241,0.06) 45%, transparent 70%)",
+            "radial-gradient(circle, rgba(99,102,241,0.10) 0%, rgba(99,102,241,0.035) 45%, transparent 70%)",
         }}
         aria-hidden
       />
@@ -77,7 +77,7 @@ function StarLayer({
       s = (s * 1664525 + 1013904223) % 4294967296;
       return s / 4294967296;
     };
-    return Array.from({ length: 70 }, () => {
+    return Array.from({ length: 40 }, () => {
       const r = rand() * 1.5 + 0.4;
       return {
         cx: rand() * FIELD_W,
@@ -86,7 +86,7 @@ function StarLayer({
         // Bright stars pick up the cyan; the rest stay white so the accent
         // still reads as an accent.
         fill: r > 1.4 ? "#38E2FF" : "#FFFFFF",
-        opacity: rand() * 0.45 + 0.15,
+        opacity: rand() * 0.3 + 0.1,
       };
     });
   }, [seed]);

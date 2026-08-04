@@ -27,24 +27,24 @@ export function ConfidentialSplitCard({
   return (
     <Panel className="min-w-0 overflow-hidden">
       <PanelHeader
-        title="Confidential balance"
+        title="Saldo confidencial"
         layer="CT"
-        note="The same balance, both ways: as the chain stores it, and as only you can read it."
+        note="O mesmo saldo dos dois lados: como a chain guarda, e como só você lê."
       />
 
       <div className="grid grid-cols-1 md:grid-cols-2">
         {/* Cipher side */}
         <div className="relative px-5 py-6">
-          <Eyebrow>Your balance as the chain stores it</Eyebrow>
+          <Eyebrow>Seu saldo como a chain guarda</Eyebrow>
 
           {balance ? (
             <div className="mt-4 space-y-5">
               <CipherBlock
-                label="Spendable commitment"
+                label="Compromisso gastável"
                 bytes={balance.commitments.spendable}
               />
               <CipherBlock
-                label="Receiving commitment"
+                label="Compromisso a receber"
                 bytes={balance.commitments.receiving}
               />
             </div>
@@ -56,7 +56,7 @@ export function ConfidentialSplitCard({
           )}
 
           <p className="mt-5 text-[12px] leading-relaxed text-ash/70">
-            No amount can be recovered from these points without your keys.
+            Nenhum valor sai destes pontos sem as suas chaves.
           </p>
         </div>
 
@@ -64,18 +64,18 @@ export function ConfidentialSplitCard({
         <div className="relative border-t border-white/10 px-5 py-6 md:border-l md:border-t-0">
           <Seam />
           <Eyebrow className="text-corona-dim">
-            And as only you can read it
+            E como só você lê
           </Eyebrow>
 
           {balance ? (
             <div className="mt-4 space-y-5">
               <Plain
-                label="Spendable"
+                label="Gastável"
                 amount={formatAmount(balance.spendable)}
                 delayMs={120}
               />
               <Plain
-                label="Receiving"
+                label="A receber"
                 amount={formatAmount(balance.receiving)}
                 delayMs={420}
                 muted={balance.receiving === 0n}
@@ -90,8 +90,8 @@ export function ConfidentialSplitCard({
 
           <p className="mt-5 text-[12px] leading-relaxed text-ash/70">
             {loading
-              ? "Reading the ledger…"
-              : "Computed on this device from your openings."}
+              ? "Lendo o ledger…"
+              : "Calculado neste dispositivo a partir das suas aberturas."}
           </p>
         </div>
       </div>
