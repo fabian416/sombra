@@ -26,9 +26,10 @@ import { useEffect, useRef } from "react";
  */
 const CONFIG = {
   /** Velocity/pressure grid. The visible softness comes from DYE, not this. */
-  SIM_RESOLUTION: 96,
-  /** Colour grid. 1440 in the reference — three times the fill rate we need. */
-  DYE_RESOLUTION: 512,
+  SIM_RESOLUTION: 72,
+  /** Colour grid. 1440 in the reference — far more fill rate than an accent
+      needs, and fill rate is what crashes weak GPUs alongside the starfield. */
+  DYE_RESOLUTION: 384,
   /** How fast colour fades. High, so the trail is a wake and not a painting. */
   DENSITY_DISSIPATION: 4.5,
   VELOCITY_DISSIPATION: 2.6,
@@ -852,11 +853,24 @@ export default function SplashCursor() {
       // just switched to has nothing to animate yet.
     };
 
+    // If the GPU evicts us (driver reset, memory pressure — the cause of the
+    // white-page "sad tab" frame), the accent dies quietly and the page lives.
+    // preventDefault would request a restore; we don't want one — this is an
+    // accent, and a context that was lost once is a context we stop trusting.
+    const onContextLost = () => {
+      disposed = true;
+      running = false;
+      cancelAnimationFrame(frame);
+      canvas.style.display = "none";
+    };
+    canvas.addEventListener("webglcontextlost", onContextLost);
+
     window.addEventListener("mousemove", onMouseMove, { passive: true });
     window.addEventListener("mousedown", onMouseDown, { passive: true });
     document.addEventListener("visibilitychange", onVisibility);
 
     return () => {
+      canvas.removeEventListener("webglcontextlost", onContextLost);
       disposed = true;
       running = false;
       cancelAnimationFrame(frame);
